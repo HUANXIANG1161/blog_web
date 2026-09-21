@@ -1,0 +1,1 @@
+{"version":3,"file":"stylesAndScript.d.ts","sourceRoot":"","sources":["../../src/handlers/stylesAndScript.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,OAAO,EAAE,IAAI,EAAE,MAAM,MAAM,CAAC;AAE1C,OAAO,KAAK,EAAE,UAAU,EAAE,MAAM,eAAe,CAAC;AAEhD,eAAO,MAAM,kBAAkB,GAC7B,MAAM,IAAI,EACV,YAAY,UAAU,EACtB,cAAc,OAAO,EACrB,cAAc,OAAO,EACrB,wBAAoB,SA+BrB,CAAC"}
