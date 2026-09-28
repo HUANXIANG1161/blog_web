@@ -1,14 +1,11 @@
 ---
-import { Font } from "astro:assets";
 import { PageProgressBar } from "@components/control/PageProgressBar";
-import Pio from "@components/features/pio/Pio.astro";
 import ConfigCarrier from "@components/misc/ConfigCarrier.astro";
 import MusicPlayer from "@components/widgets/music-player/MusicPlayer.svelte";
 import CodeGroupManager from "@/components/features/markdown/CodeGroupManager.astro";
 import DiagramManager from "@/components/features/markdown/DiagramManager.astro";
 import MermaidManager from "@/components/features/markdown/MermaidManager.astro";
-import { pioConfig, profileConfig, siteConfig } from "@/config";
-import { resolveFontMode } from "@/utils/fontMode";
+import { profileConfig, siteConfig } from "@/config";
 
 const BANNER_HEIGHT = 35;
 const BANNER_HEIGHT_EXTEND = 30;
@@ -56,7 +53,6 @@ let {
 // defines global css variables
 // why doing this in Layout instead of GlobalStyles: https://github.com/withastro/astro/issues/6728#issuecomment-1502203757
 const configHue = siteConfig.themeColor.hue;
-const customFontsEnabled = resolveFontMode(siteConfig) === "custom";
 
 // 获取导航栏透明模式配置
 const navbarTransparentMode =
@@ -102,7 +98,14 @@ if (!banner || typeof banner !== "string" || banner.trim() === "") {
 // TODO don't use post cover as banner for now
 banner = getDefaultBanner();
 
-const enableBanner = !!siteConfig.banner.src;
+// 是否处于「有横幅」的布局：只有 banner / fullscreen 两种模式会渲染横幅。
+// 之前这里只判断「有没有配横幅图片」，导致默认模式是 none 时服务端仍输出
+// enable-banner，首帧会按有横幅的布局画一次，然后被 GridScripts 改掉 —— 表现为闪一下。
+// 运行期切换模式仍由 GridScripts 的 applyWallpaperMode 负责。
+const serverWallpaperMode = siteConfig.wallpaperMode?.defaultMode || "banner";
+const enableBanner =
+	!!siteConfig.banner.src &&
+	(serverWallpaperMode === "banner" || serverWallpaperMode === "fullscreen");
 
 let pageTitle: string;
 if (title) {
@@ -163,9 +166,17 @@ const bannerOffset =
 			@layer properties, theme, base, components, utilities;
 		</style>
 
-		{customFontsEnabled && <Font cssVariable="--font-body" preload />}
-		{customFontsEnabled && <Font cssVariable="--font-cjk" />}
-		{customFontsEnabled && <Font cssVariable="--font-jetbrains-mono" />}
+		{/*
+			自定义字体由 Astro Font API 输出 @font-face 与 CSS 变量，需要 <Font /> 组件。
+			当前 siteConfig.font.mode 为 "system"，astro.config.mjs 里 fonts 为空数组，
+			astro:assets 生成的 CssVariable 类型退化为 never，渲染 <Font /> 会报类型错误。
+
+			想启用自定义字体：把 siteConfig.font.mode 改成 "custom"，再取消下面注释：
+
+			{customFontsEnabled && <Font cssVariable="--font-body" preload />}
+			{customFontsEnabled && <Font cssVariable="--font-cjk" />}
+			{customFontsEnabled && <Font cssVariable="--font-jetbrains-mono" />}
+		*/}
 
 		<script is:inline>
 			(function() {
@@ -229,13 +240,6 @@ const bannerOffset =
 
 		data-overlayscrollbars-initialize
 	>
-		<noscript
-			><iframe
-				src="https://www.googletagmanager.com/ns.html?id=GTM-KRX3XGVH"
-				height="0"
-				width="0"
-				style="display:none;visibility:hidden"></iframe></noscript
-		>
 		<!-- 页面顶部渐变高光效果 - 只在full和semifull模式下显示 -->
 		{shouldShowTopHighlight && <div class="top-gradient-highlight" />}
 
@@ -249,9 +253,6 @@ const bannerOffset =
 
 		<!-- Music Player - 核心始终加载（当enable=true），UI通过showFloatingPlayer控制 -->
 		<MusicPlayer client:idle />
-
-		<!-- Pio 看板娘组件 - 仅在进入视口时加载 -->
-		{pioConfig.enable && <Pio config={pioConfig} />}
 
 		<CodeGroupManager />
 		<DiagramManager />

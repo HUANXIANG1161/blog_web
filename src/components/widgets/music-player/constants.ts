@@ -1,7 +1,3 @@
-import clCover from "../../../assets/music/cover/cl.webp?url";
-import dazbeeCover from "../../../assets/music/cover/dazbee.webp?url";
-import hitoriCover from "../../../assets/music/cover/hitori.webp?url";
-import xryxCover from "../../../assets/music/cover/xryx.webp?url";
 import type { Song } from "./types";
 
 export const STORAGE_KEY_VOLUME = "music-player-volume";
@@ -10,40 +6,17 @@ export const DEFAULT_VOLUME = 0.7;
 
 export const DEFAULT_COVER_URL = "/favicon/favicon.ico";
 
-export const LOCAL_PLAYLIST: Song[] = [
-	{
-		id: 1,
-		title: "口笛で愛は歌えない",
-		artist: "Dazbee",
-		cover: dazbeeCover,
-		url: "assets/music/url/dazbee.mp3",
-		duration: 241,
-	},
-	{
-		id: 2,
-		title: "ひとり上手",
-		artist: "Kaya",
-		cover: hitoriCover,
-		url: "assets/music/url/hitori.mp3",
-		duration: 253,
-	},
-	{
-		id: 3,
-		title: "眩耀夜行",
-		artist: "ス리즈ブーケ",
-		cover: xryxCover,
-		url: "assets/music/url/xryx.mp3",
-		duration: 245,
-	},
-	{
-		id: 4,
-		title: "春雷の頃",
-		artist: "22/7",
-		cover: clCover,
-		url: "assets/music/url/cl.mp3",
-		duration: 242,
-	},
-];
+// 本地播放列表。主题自带的示例曲目已删除（曲目属于原主题作者，也不该随站点分发）。
+//
+// 想启用本地音乐：
+//   1. 把音频和封面放到 public/assets/music/ 下
+//   2. 照下面的结构往 playlist 里补条目；cover 留空会用 DEFAULT_COVER_URL 兜底
+//   3. 把 src/config/musicConfig.ts 的 enable 改成 true
+//
+// url / cover 以 "/" 开头时按 public/ 解析，否则按站点根路径补齐。
+const playlist: Song[] = [];
+
+export const LOCAL_PLAYLIST: Song[] = playlist;
 
 export const DEFAULT_SONG: Song = {
 	title: "Sample Song",
@@ -54,9 +27,9 @@ export const DEFAULT_SONG: Song = {
 	id: 0,
 };
 
-export const DEFAULT_METING_API =
-	"https://www.bilibili.uno/api?server=:server&type=:type&id=:id&auth=:auth&r=:r";
-export const DEFAULT_METING_ID = "14164869977";
+// Meting 模式默认值。没有配置自建 API 时留空，store 会跳过请求而不是打第三方演示接口。
+export const DEFAULT_METING_API = "";
+export const DEFAULT_METING_ID = "";
 export const DEFAULT_METING_SERVER = "netease";
 export const DEFAULT_METING_TYPE = "playlist";
 

@@ -28,16 +28,13 @@ const fontCheckSource = await readFile(
 );
 
 describe("Custom font loading boundary", () => {
-	it("ships both local display fonts as complete WOFF2 files", async () => {
-		for (const name of ["ZenMaruGothic-Medium.woff2", "loli.woff2"]) {
-			const font = await readFile(
-				new URL(`../src/assets/fonts/${name}`, import.meta.url),
-			);
-			assert.equal(font.subarray(0, 4).toString("ascii"), "wOF2");
-			assert.ok(font.length > 100_000, `${name} must not be a tiny subset`);
-			assert.ok(astroConfig.includes(`./src/assets/fonts/${name}`));
-		}
-
+	// 站点默认使用系统字体（siteConfig.font.mode = "system"），此时 astro.config.mjs
+	// 的 fonts 数组为空，仓库里也不保留自带的 woff2 字体文件。
+	// 因此这里只校验「系统模式下不加载自定义字体」这一契约。
+	it("registers local fonts only behind the custom-font switch", () => {
+		assert.match(astroConfig, /const localFonts = customFontsEnabled/);
+		assert.match(astroConfig, /fonts:\s*localFonts/);
+		// 不允许把 .ttf 直接配给 Astro（体积大，应使用 woff2）
 		assert.doesNotMatch(astroConfig, /src: \[[^\]]+\.ttf/);
 	});
 
@@ -59,7 +56,6 @@ describe("Custom font loading boundary", () => {
 	});
 
 	it("only renders Astro Font components when custom mode is enabled", () => {
-		assert.match(astroConfig, /fonts:\s*customFontsEnabled\s*\?\s*\[/);
 		assert.equal(
 			(layoutSource.match(/customFontsEnabled\s*&&\s*<Font/g) ?? []).length,
 			3,

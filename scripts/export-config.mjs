@@ -52,7 +52,6 @@ const rootDir = path.resolve(
 const CONFIGS = [
 	["announcementConfig", "announcementConfig", "AnnouncementConfig"],
 	["backgroundWallpaper", "fullscreenWallpaperConfig", "FullscreenWallpaperConfig"],
-	["commentConfig", "commentConfig", "CommentConfig"],
 	["effectsConfig", "sakuraConfig", "SakuraConfig"],
 	["expressiveCodeConfig", "expressiveCodeConfig", "ExpressiveCodeConfig"],
 	["footerConfig", "footerConfig", "FooterConfig"],
@@ -61,7 +60,6 @@ const CONFIGS = [
 	["musicConfig", "musicPlayerConfig", "MusicPlayerConfig"],
 	["navBarConfig", "navBarConfig", "NavBarConfig"],
 	["permalinkConfig", "permalinkConfig", "PermalinkConfig"],
-	["pioConfig", "pioConfig", "PioConfig"],
 	["profileConfig", "profileConfig", "ProfileConfig"],
 	["randomPostsConfig", "randomPostsConfig", "RandomPostsConfig"],
 	["relatedPostsConfig", "relatedPostsConfig", "RelatedPostsConfig"],

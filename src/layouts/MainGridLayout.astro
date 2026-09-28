@@ -127,8 +127,11 @@ const defaultPostListLayout = siteConfig.postListLayout?.defaultMode || "list";
 		postListLayoutEnabled={siteConfig.postListLayout?.enable ?? true}
 	/>
 
-	<!-- 全屏壁纸 - 始终渲染，通过 JS 控制显示隐藏 -->
-	<FullscreenWallpaper config={fullscreenWallpaperConfig} />
+	<!-- 全屏壁纸 - 始终渲染，通过 JS 控制显示隐藏（容器初始 display:none，避免非 overlay 模式闪一下背景图） -->
+	<FullscreenWallpaper
+		config={fullscreenWallpaperConfig}
+		defaultMode={siteConfig.wallpaperMode.defaultMode}
+	/>
 
 	<!-- 全局图标加载器 -->
 	<IconifyLoader />

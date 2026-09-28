@@ -7,9 +7,14 @@ import { getImageFormats, getImageQuality } from "../../utils/image-utils";
 interface Props {
 	config: FullscreenWallpaperConfig;
 	className?: string;
+	/**
+	 * 站点配置的默认壁纸模式。用于在 localStorage 还没有值时决定初始模式，
+	 * 避免站点默认是 none 却先按 banner/overlay 渲染出一层背景。
+	 */
+	defaultMode?: string;
 }
 
-const { config, className } = Astro.props;
+const { config, className, defaultMode = "none" } = Astro.props;
 
 // 获取当前设备类型的图片源
 const getImageSources = async () => {
@@ -103,35 +108,44 @@ const renderGroups = [
 		"fixed inset-0 w-full h-full overflow-hidden pointer-events-none wallpaper-container",
 		className
 	]}
-	style={`z-index: ${zIndex}; transform: translateZ(0); perspective: 1000px; opacity: var(--wallpaper-opacity, ${opacity}); filter: blur(var(--wallpaper-blur, ${blurAmount}px));`}
+	style={`z-index: ${zIndex}; transform: translateZ(0); perspective: 1000px; opacity: var(--wallpaper-opacity, ${opacity}); filter: blur(var(--wallpaper-blur, ${blurAmount}px)); display: none;`}
 	data-fullscreen-wallpaper
+	data-wallpaper-hidden
 >
-	<script is:inline define:vars={{ wallpaperEnabled: config.enable ?? true, overlaySwitchable: config.overlay?.switchable ?? true }}>
+	<script is:inline define:vars={{ wallpaperEnabled: config.enable ?? true, defaultWallpaperMode: defaultMode, overlaySwitchable: config.overlay?.switchable ?? true }}>
 	(function() {
 		const root = document.documentElement;
+		const el = document.currentScript.parentElement;
 		const wallpaperEnabledVal = wallpaperEnabled;
-		const mode = wallpaperEnabledVal ? (localStorage.getItem('wallpaperMode') || 'banner') : 'banner';
+		// 关键：localStorage 没有值时用站点配置的默认模式，而不是硬编码 'banner'。
+		// 否则默认模式是 none 的站点，首次访问会先按 overlay 渲染出背景图（闪一下）。
+		const mode = wallpaperEnabledVal
+			? (localStorage.getItem('wallpaperMode') || defaultWallpaperMode)
+			: defaultWallpaperMode;
 
 		if (mode === 'overlay') {
+			// 只有 overlay 模式才需要这层壁纸。去掉初始的 display:none，
+			// 这个脚本是在容器之后同步执行的，不会产生闪烁。
+			el.style.removeProperty('display');
+			el.removeAttribute('data-wallpaper-hidden');
+
 			const isSw = typeof overlaySwitchable === 'object' ? overlaySwitchable : { opacity: !!overlaySwitchable, blur: !!overlaySwitchable, cardOpacity: !!overlaySwitchable };
 			const overlayOpacity = isSw.opacity ? localStorage.getItem('overlayOpacity') : null;
 			const overlayBlur = isSw.blur ? localStorage.getItem('overlayBlur') : null;
 			const overlayCardOpacity = isSw.cardOpacity ? localStorage.getItem('overlayCardOpacity') : null;
 
 			if (overlayOpacity) {
-				document.currentScript.parentElement.style.setProperty('--wallpaper-opacity', overlayOpacity);
+				el.style.setProperty('--wallpaper-opacity', overlayOpacity);
 			}
 			if (overlayBlur) {
-				document.currentScript.parentElement.style.setProperty('--wallpaper-blur', overlayBlur + 'px');
+				el.style.setProperty('--wallpaper-blur', overlayBlur + 'px');
 			}
 			if (overlayCardOpacity) {
 				root.style.setProperty('--card-transparent-opacity', overlayCardOpacity);
 			}
-		}
-
-		if (mode !== 'overlay') {
+		} else {
 			root.style.removeProperty('--card-transparent-opacity');
-			document.currentScript.parentElement.style.display = 'none';
+			el.style.display = 'none';
 		}
 	})();
 	</script>

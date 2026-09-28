@@ -3,6 +3,10 @@ import { i18n } from "@i18n/translation";
 
 import {
 	DEFAULT_COVER_URL,
+	DEFAULT_METING_API,
+	DEFAULT_METING_ID,
+	DEFAULT_METING_SERVER,
+	DEFAULT_METING_TYPE,
 	DEFAULT_SONG,
 	LOCAL_PLAYLIST,
 	SKIP_ERROR_DELAY,
@@ -249,14 +253,19 @@ class MusicPlayerStore {
 
 	private async loadPlaylist(): Promise<void> {
 		const mode = musicPlayerConfig.mode ?? "meting";
-		const meting_api =
-			musicPlayerConfig.meting_api ??
-			"https://www.bilibili.uno/api?server=:server&type=:type&id=:id&auth=:auth&r=:r";
-		const meting_id = musicPlayerConfig.id ?? "14164869977";
-		const meting_server = musicPlayerConfig.server ?? "netease";
-		const meting_type = musicPlayerConfig.type ?? "playlist";
+		const meting_api = musicPlayerConfig.meting_api ?? DEFAULT_METING_API;
+		const meting_id = musicPlayerConfig.id ?? DEFAULT_METING_ID;
+		const meting_server = musicPlayerConfig.server ?? DEFAULT_METING_SERVER;
+		const meting_type = musicPlayerConfig.type ?? DEFAULT_METING_TYPE;
 
 		if (mode === "meting") {
+			// 没有配置自建 Meting API / 歌单 ID 时不去请求第三方接口，直接报配置缺失
+			if (!meting_api || !meting_id) {
+				this.showError(
+					"Meting 模式需要在 src/config/musicConfig.ts 配置 meting_api 和 id",
+				);
+				return;
+			}
 			await this.fetchMetingPlaylist(
 				meting_api,
 				meting_server,

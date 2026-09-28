@@ -18,7 +18,6 @@ export const WIDGET_COMPONENT_MAP = {
 	"music-player": "../components/widgets/music-player/MusicPlayer.svelte",
 	"music-sidebar":
 		"../components/widgets/music-sidebar/MusicSidebarWidget.astro",
-	pio: "../components/widget/Pio.astro",
 	"site-stats": "../components/widgets/site-stats/SiteStats.astro",
 	calendar: "../components/widgets/calendar/Calendar.astro",
 	custom: null,
@@ -246,15 +245,6 @@ export class WidgetManager {
 		this.config.components.drawer = this.config.components.drawer.filter(
 			(t) => t !== type,
 		);
-	}
-
-	/**
-	 * 检查组件是否应该在侧边栏中渲染
-	 * @param componentType 组件类型
-	 */
-	isSidebarComponent(componentType: WidgetComponentType): boolean {
-		// Pio 组件是全局组件，不在侧边栏中渲染
-		return componentType !== "pio";
 	}
 }
 

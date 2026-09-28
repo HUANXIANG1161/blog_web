@@ -5,9 +5,10 @@
  *
  * 包含:
  * - Google Tag Manager (GTM)
- * - Microsoft Clarity (可选，通过 thirdPartyAnalytics 配置控制)
+ * - Microsoft Clarity
  *
- * 使用 requestIdleCallback 延迟加载以优化性能
+ * 两者都由 siteConfig.thirdPartyAnalytics 统一控制：enable 为 false（默认）时
+ * 不输出任何第三方请求。使用 requestIdleCallback 延迟加载以优化性能。
  */
 
 interface Props {
@@ -23,15 +24,18 @@ const {
 	thirdPartyAnalytics = { enable: false, clarityId: "" },
 } = Astro.props;
 
+// 总开关关闭时，GTM 与 Clarity 都不加载
+const analyticsEnable = thirdPartyAnalytics.enable;
+const gtmActiveId = analyticsEnable ? gtmId : "";
 const clarityEnable =
-	thirdPartyAnalytics.enable && thirdPartyAnalytics.clarityId;
+	analyticsEnable && thirdPartyAnalytics.clarityId;
 ---
 
 <!-- 第三方分析脚本 - 仅在用户交互后延迟加载 -->
 <script
 	is:inline
 	define:vars={{
-		gtmId,
+		gtmId: gtmActiveId,
 		clarityEnable,
 		clarityId: thirdPartyAnalytics.clarityId || "",
 	}}
@@ -46,19 +50,21 @@ const clarityEnable =
 			}
 			window.analyticsLoaded = true;
 
-			// Google Tag Manager
-			(function (w, d, s, l, i) {
-				w[l] = w[l] || [];
-				w[l].push({
-					"gtm.start": new Date().getTime(),
-					event: "gtm.js",
-				});
-				const f = d.getElementsByTagName(s)[0],
-					j = d.createElement(s);
-				j.async = true;
-				j.src = "https://www.googletagmanager.com/gtm.js?id=" + i;
-				f.parentNode.insertBefore(j, f);
-			})(window, document, "script", "dataLayer", gtmId);
+			// Google Tag Manager（gtmId 为空说明未启用）
+			if (gtmId) {
+				(function (w, d, s, l, i) {
+					w[l] = w[l] || [];
+					w[l].push({
+						"gtm.start": new Date().getTime(),
+						event: "gtm.js",
+					});
+					const f = d.getElementsByTagName(s)[0],
+						j = d.createElement(s);
+					j.async = true;
+					j.src = "https://www.googletagmanager.com/gtm.js?id=" + i;
+					f.parentNode.insertBefore(j, f);
+				})(window, document, "script", "dataLayer", gtmId);
+			}
 
 			// Clarity (仅在启用时加载)
 			if (clarityEnable && clarityId) {
