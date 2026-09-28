@@ -1,5 +1,14 @@
 // 日记数据配置
 // 用于管理日记页面的数据
+//
+// 想加一条日记就在下面数组里追加，字段含义：
+//   id       必填，唯一数字
+//   content  必填，正文
+//   date     必填，建议带时区，例如 "2026-09-29T20:30:00+08:00"
+//   images   可选，图片路径数组（相对 public/，如 "/images/diary/1.webp"）
+//   location / mood / tags  可选
+//
+// 注意：日记页若在 siteConfig.diaryApiUrl 配了 Memos 地址，会优先走 Memos，这里的静态数据不显示。
 
 export interface DiaryItem {
 	id: number;
@@ -11,16 +20,7 @@ export interface DiaryItem {
 	tags?: string[];
 }
 
-// 示例日记数据
-const diaryData: DiaryItem[] = [
-	{
-		id: 1,
-		content:
-			"The falling speed of cherry blossoms is five centimeters per second!",
-		date: "2025-01-15T10:30:00Z",
-		images: ["/images/diary/sakura.jpg", "/images/diary/1.webp"],
-	},
-];
+const diaryData: DiaryItem[] = [];
 
 // 获取日记列表（按时间倒序）
 export const getDiaryList = (limit?: number) => {

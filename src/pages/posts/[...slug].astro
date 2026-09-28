@@ -2,7 +2,6 @@
 import { getImage } from "astro:assets";
 import type { CollectionEntry } from "astro:content";
 import path from "node:path";
-import Comment from "@components/comment/index.astro";
 import {
 	LastModified,
 	PostMeta,
@@ -383,9 +382,6 @@ const jsonLd = {
 			}
 		</div>
 	</div>
-
-	<!-- 评论 -->
-	<Comment post={entry} />
 
 	{
 		siteConfig.showLastModified && (

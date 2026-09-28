@@ -112,6 +112,23 @@ const subtitle = i18n(I18nKey.projectsSubtitle);
 					No matching projects
 				</p>
 			</div>
+
+			{
+				projectsData.length === 0 && (
+					<div class="text-center py-16">
+						<Icon
+							name="material-symbols:work-outline"
+							class="text-6xl text-black/15 dark:text-white/15 mb-4"
+						/>
+						<h3 class="text-lg font-medium text-black/90 dark:text-white/90 mb-2">
+							{i18n(I18nKey.noData)}
+						</h3>
+						<p class="text-black/60 dark:text-white/60">
+							还没有添加项目，在 src/data/projects.ts 里补上就会显示在这里。
+						</p>
+					</div>
+				)
+			}
 		</div>
 	</div>
 </MainGridLayout>
