@@ -133,29 +133,29 @@ export const navBarConfig: NavBarConfig = {
 		// 预设链接：归档
 		LinkPreset.Archive,
 
-		// 自定义一级下拉菜单示例：外部链接集合
+		// 外部链接集合
 		{
-			name: "Links",
+			name: "链接",
 			url: "/links/",
 			icon: "material-symbols:link",
 			children: [
 				{
-					name: "GitHub",
-					url: "https://github.com/LyraVoid/Mizuki",
-					external: true, // 外部链接，新标签页打开
-					icon: "fa7-brands:github",
-				},
-				{
 					name: "Bilibili",
-					url: "https://space.bilibili.com/701864046",
-					external: true,
+					url: "https://space.bilibili.com/101263758",
+					external: true, // 外部链接，新标签页打开
 					icon: "fa7-brands:bilibili",
 				},
 				{
-					name: "Gitee",
-					url: "https://gitee.com/matsuzakayuki/Mizuki",
+					name: "GitHub",
+					// TODO: 换成你自己的 GitHub 主页
+					url: "https://github.com/TODO-your-github",
 					external: true,
-					icon: "mdi:git",
+					icon: "fa7-brands:github",
+				},
+				{
+					name: "RSS",
+					url: "/rss.xml",
+					icon: "material-symbols:rss-feed",
 				},
 			],
 		},
@@ -167,11 +167,6 @@ export const navBarConfig: NavBarConfig = {
 			icon: "material-symbols:person",
 			children: [
 				{
-					name: "Anime",
-					url: "/anime/",
-					icon: "material-symbols:movie",
-				},
-				{
 					name: "Diary",
 					url: "/diary/",
 					icon: "material-symbols:book",
@@ -180,12 +175,6 @@ export const navBarConfig: NavBarConfig = {
 					name: "Gallery",
 					url: "/albums/",
 					icon: "material-symbols:photo-library",
-				},
-				{
-					name: "Devices",
-					url: "/devices/",
-					icon: "material-symbols:devices",
-					external: false, // 内部链接，当前页导航
 				},
 			],
 		},
@@ -224,12 +213,6 @@ export const navBarConfig: NavBarConfig = {
 					name: "Skills",
 					url: "/skills/",
 					icon: "material-symbols:psychology",
-				},
-				LinkPreset.AITools,
-				{
-					name: "Timeline",
-					url: "/timeline/",
-					icon: "material-symbols:timeline",
 				},
 			],
 		},

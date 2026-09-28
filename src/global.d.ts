@@ -96,6 +96,12 @@ declare global {
 	}
 
 	var Fancybox: Fancybox | undefined;
+
+	/**
+	 * 通过 `<script define:vars={{ ... }}>` 注入到内联脚本的变量。
+	 * Astro 在构建时把值序列化进脚本，类型检查看不到这层注入，故在此声明。
+	 */
+	var encryptedContent: string;
 }
 
 interface SearchResult {

@@ -32,17 +32,13 @@ export interface SiteConfig {
 		fixed: boolean;
 	};
 
-	// 特色页面开关配置
+	// 特色页面开关配置（已删除的页面不再保留开关，见 src/pages/）
 	featurePages: {
-		anime: boolean; // 番剧页面开关
 		diary: boolean; // 日记页面开关
 		friends: boolean; // 友链页面开关
 		projects: boolean; // 项目页面开关
 		skills: boolean; // 技能页面开关
-		timeline: boolean; // 时间线页面开关
 		albums: boolean; // 相册页面开关
-		devices: boolean; // 设备页面开关
-		aiTools: boolean; // AI 工具页面开关
 	};
 
 	// 文章列表布局配置
@@ -203,13 +199,10 @@ export enum LinkPreset {
 	Archive = 1,
 	About = 2,
 	Friends = 3,
-	Anime = 4,
 	Diary = 5,
 	Albums = 6,
 	Projects = 7,
 	Skills = 8,
-	Timeline = 9,
-	AITools = 10,
 }
 
 export interface NavBarLink {
@@ -271,36 +264,6 @@ export interface PermalinkConfig {
 	format: string;
 }
 
-// 评论配置
-
-export interface CommentConfig {
-	enable: boolean; // 是否启用评论功能
-	system?: "twikoo" | "giscus"; // 评论系统选择
-	twikoo?: TwikooConfig;
-	giscus?: GiscusConfig;
-}
-
-export interface GiscusConfig {
-	repo: string;
-	repoId: string;
-	category: string;
-	categoryId: string;
-	mapping: string;
-	strict: string;
-	reactionsEnabled: string;
-	emitMetadata: string;
-	inputPosition: string;
-	theme: string;
-	lang: string;
-	loading: string;
-}
-
-interface TwikooConfig {
-	envId: string;
-	region?: string;
-	lang?: string;
-}
-
 export type LIGHT_DARK_MODE = typeof LIGHT_MODE | typeof DARK_MODE;
 
 export type WALLPAPER_MODE =
@@ -335,11 +298,6 @@ export interface ExpressiveCodeConfig {
 	languageBadge: {
 		enable: boolean;
 	};
-	languageLogo: {
-		enable: boolean;
-		color?: "mono" | "original" | "theme" | `#${string}`;
-		excludedLangs?: string[];
-	};
 	collapsible: {
 		enable: boolean;
 		lineThreshold: number;
@@ -371,10 +329,10 @@ export interface MusicPlayerConfig {
 	showFloatingPlayer: boolean; // 是否显示悬浮播放器 UI
 	floatingEntryMode?: "default" | "fab"; // 悬浮入口模式：默认独立播放器或集成到 FAB 组
 	mode: "meting" | "local"; // 音乐播放器模式
-	meting_api: string; // Meting API 地址
-	id: string; // 歌单ID
-	server: string; // 音乐源服务器
-	type: string; // 音乐类型
+	meting_api?: string; // Meting API 地址（仅 meting 模式需要）
+	id?: string; // 歌单ID（仅 meting 模式需要）
+	server?: string; // 音乐源服务器
+	type?: string; // 音乐类型
 }
 
 export interface FooterConfig {
@@ -392,7 +350,6 @@ export type WidgetComponentType =
 	| "card-toc" // 卡片式目录组件
 	| "music-player"
 	| "music-sidebar"
-	| "pio" // 添加 pio 组件类型
 	| "site-stats" // 站点统计组件
 	| "calendar" // 日历组件
 	| "custom";
@@ -496,47 +453,6 @@ export interface FullscreenWallpaperConfig {
 					opacity?: boolean;
 					blur?: boolean;
 			  };
-	};
-}
-
-/**
- * Pio 看板娘配置
- */
-export interface PioConfig {
-	enable: boolean; // 是否启用看板娘
-	models?: string[]; // 模型文件路径数组（支持 .model.json 和 .model3.json）
-	position?: "left" | "right"; // 看板娘位置
-	width?: number; // 看板娘宽度
-	height?: number; // 看板娘高度
-	mode?: "static" | "fixed" | "draggable"; // 展现模式
-	hiddenOnMobile?: boolean; // 是否在移动设备上隐藏
-	hideAboutMenu?: boolean; // 是否隐藏内置 About 菜单按钮
-	dialog?: {
-		welcome?: string | string[]; // 欢迎词
-		touch?: string | string[]; // 触摸提示
-		home?: string; // 首页提示
-		skin?: [string, string]; // 换装提示 [切换前, 切换后]
-		close?: string; // 关闭提示
-		link?: string; // 关于链接
-		custom?: {
-			selector: string; // CSS选择器
-			type: "read" | "link"; // 类型
-			text?: string; // 自定义文本
-		}[];
-	};
-	tips?: {
-		welcomeMessage?: string[]; // 欢迎语
-		messages?: string[]; // 循环提示内容
-		duration?: number; // 每条 tips 展示时长（ms）
-		interval?: number; // tips 循环间隔（ms）
-	};
-	menus?: {
-		items?: {
-			icon?: string; // Iconify 图标名称
-			label: string; // 无障碍标题
-			action: string; // 预定义动作名称
-		}[];
-		align?: "left" | "right"; // 菜单对齐方式
 	};
 }
 

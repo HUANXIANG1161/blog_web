@@ -15,14 +15,12 @@
  * licenseConfig                 │ licenseConfig.ts           │ 文章许可协议（CC 协议名称和链接）
  * permalinkConfig               │ permalinkConfig.ts         │ 固定链接配置（URL 格式模板）
  * expressiveCodeConfig          │ expressiveCodeConfig.ts    │ 代码块样式（主题、主题切换行为）
- * commentConfig                 │ commentConfig.ts           │ 评论系统（Twikoo / Giscus 配置）
  * shareConfig                   │ shareConfig.ts             │ 分享功能开关
  * announcementConfig            │ announcementConfig.ts      │ 公告栏（标题、内容、链接）
  * musicPlayerConfig             │ musicConfig.ts             │ 音乐播放器（本地 / Meting 模式）
  * footerConfig                  │ footerConfig.ts            │ 页脚自定义 HTML
  * sidebarLayoutConfig           │ sidebarConfig.ts           │ 侧边栏组件布局（排序、动画、响应式断点）
  * sakuraConfig                  │ effectsConfig.ts           │ 樱花飘落特效（数量、速度、透明度）
- * pioConfig                     │ pioConfig.ts               │ Live2D 看板娘（模型、对话、位置）
  * relatedPostsConfig            │ relatedPostsConfig.ts      │ 相关文章推荐（开关、数量）
  * randomPostsConfig             │ randomPostsConfig.ts       │ 随机文章推荐（开关、数量）
  * widgetConfigs                 │ (聚合)                     │ 侧边栏 Widget 配置聚合对象
@@ -65,7 +63,6 @@
 
 import { announcementConfig as announcementDefaults } from "./announcementConfig";
 import { fullscreenWallpaperConfig as fullscreenWallpaperDefaults } from "./backgroundWallpaper";
-import { commentConfig as commentDefaults } from "./commentConfig";
 import { sakuraConfig as sakuraDefaults } from "./effectsConfig";
 import { expressiveCodeConfig as expressiveCodeDefaults } from "./expressiveCodeConfig";
 import { footerConfig as footerDefaults } from "./footerConfig";
@@ -75,7 +72,6 @@ import { musicPlayerConfig as musicPlayerDefaults } from "./musicConfig";
 import { navBarConfig as navBarDefaults } from "./navBarConfig";
 import { withOverride } from "./overrideLoader";
 import { permalinkConfig as permalinkDefaults } from "./permalinkConfig";
-import { pioConfig as pioDefaults } from "./pioConfig";
 import { profileConfig as profileDefaults } from "./profileConfig";
 import { randomPostsConfig as randomPostsDefaults } from "./randomPostsConfig";
 import { relatedPostsConfig as relatedPostsDefaults } from "./relatedPostsConfig";
@@ -87,8 +83,6 @@ import { siteConfig as siteDefaults } from "./siteConfig";
 export const siteConfig = withOverride("siteConfig", siteDefaults);
 
 // SITE_LANG 从合并后的站点配置派生，覆盖 siteConfig.lang 后会一并生效。
-// 注意：commentConfig.ts 在模块顶层引用了 siteConfig.ts 里的同名常量填充评论
-// 语言，若覆盖了 siteConfig.lang，需要同时覆盖 commentConfig 的对应字段。
 export const SITE_LANG = siteConfig.lang;
 
 // ─── 外观与壁纸 ─────────────────────────────────────────────
@@ -98,7 +92,6 @@ export const fullscreenWallpaperConfig = withOverride(
 );
 
 // ─── 互动功能 ───────────────────────────────────────────────
-export const commentConfig = withOverride("commentConfig", commentDefaults);
 export const sakuraConfig = withOverride("sakuraConfig", sakuraDefaults);
 
 // ─── 代码块 ─────────────────────────────────────────────────
@@ -125,7 +118,6 @@ export const permalinkConfig = withOverride(
 	"permalinkConfig",
 	permalinkDefaults,
 );
-export const pioConfig = withOverride("pioConfig", pioDefaults);
 
 // ─── 个人资料 ───────────────────────────────────────────────
 export const profileConfig = withOverride("profileConfig", profileDefaults);
@@ -160,7 +152,6 @@ export const widgetConfigs = {
 	layout: sidebarLayoutConfig,
 	sakura: sakuraConfig,
 	fullscreenWallpaper: fullscreenWallpaperConfig,
-	pio: pioConfig,
 	share: shareConfig,
 	relatedPosts: relatedPostsConfig,
 	randomPosts: randomPostsConfig,

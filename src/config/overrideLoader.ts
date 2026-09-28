@@ -13,7 +13,6 @@ import { deepMerge } from "./deepMerge";
 
 const OVERRIDABLE_CONFIGS = [
 	"announcementConfig",
-	"commentConfig",
 	"expressiveCodeConfig",
 	"footerConfig",
 	"fullscreenWallpaperConfig",
@@ -22,7 +21,6 @@ const OVERRIDABLE_CONFIGS = [
 	"musicPlayerConfig",
 	"navBarConfig",
 	"permalinkConfig",
-	"pioConfig",
 	"profileConfig",
 	"randomPostsConfig",
 	"relatedPostsConfig",

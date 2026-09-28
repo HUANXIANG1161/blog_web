@@ -9,7 +9,6 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, fontProviders } from "astro/config";
 import expressiveCode from "astro-expressive-code";
 import icon from "astro-icon";
-import { pluginLanguageLogo } from "ec-lang-logo";
 import "katex/dist/contrib/mhchem.mjs";
 import { oddmisc } from "oddmisc";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
@@ -51,55 +50,60 @@ import { resolveFontMode } from "./src/utils/fontMode.ts";
 
 const customFontsEnabled = resolveFontMode(siteConfig) === "custom";
 
+// 自定义字体的本地字体文件放在 src/assets/fonts/。
+// 站点默认用系统字体（siteConfig.font.mode = "system"），此时整个 fonts 数组为空，
+// 既不会被 Vite 打进 dist，也不会引用不存在的字体文件。
+const localFonts = customFontsEnabled
+	? [
+			{
+				name: "JetBrains Mono",
+				cssVariable: "--font-jetbrains-mono",
+				provider: fontProviders.fontsource(),
+				styles: ["normal", "italic"],
+			},
+			{
+				name: "ZenMaruGothic-Medium",
+				cssVariable: "--font-body",
+				provider: fontProviders.local(),
+				options: {
+					variants: [
+						{
+							src: ["./src/assets/fonts/ZenMaruGothic-Medium.woff2"],
+							weight: "500",
+							style: "normal",
+						},
+					],
+				},
+				// These variables are composed into --font-sans below. Keep their
+				// fallback lists empty; otherwise a system fallback after this Latin
+				// font prevents the following CJK font from ever being considered.
+				fallbacks: [],
+				optimizedFallbacks: false,
+			},
+			{
+				name: "Loli",
+				cssVariable: "--font-cjk",
+				provider: fontProviders.local(),
+				options: {
+					variants: [
+						{
+							src: ["./src/assets/fonts/loli.woff2"],
+							weight: "400",
+							style: "normal",
+						},
+					],
+				},
+				// The final system fallback belongs to --font-sans, not this partial
+				// CJK font stack.
+				fallbacks: [],
+				optimizedFallbacks: false,
+			},
+		]
+	: [];
+
 // https://astro.build/config
 export default defineConfig({
-	fonts: customFontsEnabled
-		? [
-				{
-					name: "JetBrains Mono",
-					cssVariable: "--font-jetbrains-mono",
-					provider: fontProviders.fontsource(),
-					styles: ["normal", "italic"],
-				},
-				{
-					name: "ZenMaruGothic-Medium",
-					cssVariable: "--font-body",
-					provider: fontProviders.local(),
-					options: {
-						variants: [
-							{
-								src: ["./src/assets/fonts/ZenMaruGothic-Medium.woff2"],
-								weight: "500",
-								style: "normal",
-							},
-						],
-					},
-					// These variables are composed into --font-sans below. Keep their
-					// fallback lists empty; otherwise a system fallback after this Latin
-					// font prevents the following CJK font from ever being considered.
-					fallbacks: [],
-					optimizedFallbacks: false,
-				},
-				{
-					name: "Loli",
-					cssVariable: "--font-cjk",
-					provider: fontProviders.local(),
-					options: {
-						variants: [
-							{
-								src: ["./src/assets/fonts/loli.woff2"],
-								weight: "400",
-								style: "normal",
-							},
-						],
-					},
-					// The final system fallback belongs to --font-sans, not this partial
-					// CJK font stack.
-					fallbacks: [],
-					optimizedFallbacks: false,
-				},
-			]
-		: [],
+	fonts: localFonts,
 
 	site: siteConfig.siteURL,
 	base: "/",
@@ -151,15 +155,6 @@ export default defineConfig({
 				pluginLineNumbers(),
 				...(expressiveCodeConfig.languageBadge.enable
 					? [pluginLanguageBadge()]
-					: []),
-				...(expressiveCodeConfig.languageLogo.enable
-					? [
-							pluginLanguageLogo({
-								color: expressiveCodeConfig.languageLogo.color ?? "mono",
-								excludedLangs:
-									expressiveCodeConfig.languageLogo.excludedLangs ?? [],
-							}),
-						]
 					: []),
 				pluginCustomCopyButton(),
 			],
@@ -339,8 +334,7 @@ export default defineConfig({
 			warmup: {
 				clientFiles: [
 					"src/layouts/Layout.astro",
-					"src/pages/index.astro",
-					"src/components/widgets/music-player/MusicPlayer.svelte",
+					"src/pages/[...page].astro",
 					"src/components/organisms/navigation/Search.svelte",
 					"src/components/control/ThemeSwitch.svelte",
 					"src/components/features/settings/DisplaySettings.svelte",

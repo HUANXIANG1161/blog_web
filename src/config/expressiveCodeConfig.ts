@@ -10,11 +10,6 @@ export const expressiveCodeConfig: ExpressiveCodeConfig = {
 	languageBadge: {
 		enable: true,
 	},
-	languageLogo: {
-		enable: false,
-		color: "mono",
-		excludedLangs: ["text", "plaintext"],
-	},
 	collapsible: {
 		enable: true,
 		lineThreshold: 20,

@@ -24,11 +24,6 @@ export const LinkPresets: Record<LinkPreset, NavBarLink> = {
 		url: "/friends/",
 		icon: "material-symbols:group",
 	},
-	[LinkPreset.Anime]: {
-		name: i18n(I18nKey.anime),
-		url: "/anime/",
-		icon: "material-symbols:movie",
-	},
 	[LinkPreset.Diary]: {
 		name: i18n(I18nKey.diary),
 		url: "/diary/",
@@ -48,15 +43,5 @@ export const LinkPresets: Record<LinkPreset, NavBarLink> = {
 		name: i18n(I18nKey.skills),
 		url: "/skills/",
 		icon: "material-symbols:psychology",
-	},
-	[LinkPreset.Timeline]: {
-		name: i18n(I18nKey.timeline),
-		url: "/timeline/",
-		icon: "material-symbols:timeline",
-	},
-	[LinkPreset.AITools]: {
-		name: i18n(I18nKey.aiTools),
-		url: "/ai-tools/",
-		icon: "material-symbols:smart-toy",
 	},
 };
