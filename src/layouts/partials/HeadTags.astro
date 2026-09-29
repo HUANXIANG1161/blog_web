@@ -56,6 +56,14 @@ const favicons: Favicon[] =
 }
 <meta name="author" content={profileConfig.name} />
 
+<!--
+	canonical：告诉搜索引擎哪个是这一页的正式地址。
+	这个主题原本只输出 og:url，没有 canonical；站点有了正式域名后补上，
+	避免带查询参数或大小写不同的地址被当成多个页面重复收录。
+	Astro.url 已是绝对地址，且与 trailingSlash: "always" 的产物一致。
+-->
+<link rel="canonical" href={Astro.url} />
+
 <!-- Open Graph Tags -->
 <meta property="og:site_name" content={siteConfig.title} />
 <meta property="og:url" content={Astro.url} />

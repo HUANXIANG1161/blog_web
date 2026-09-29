@@ -6,7 +6,7 @@ const SITE_LANG = "zh_CN"; // 语言代码，例如：'en', 'zh_CN', 'ja' 等。
 export const siteConfig: SiteConfig = {
 	title: "幻想1161",
 	subtitle: "幻想1161",
-	siteURL: "https://TODO-your-domain.com/", // TODO: 替换成你自己的域名，必须以斜杠结尾
+	siteURL: "https://fantasy1161.space/", // 站点URL，必须以斜杠结尾；会用于 canonical、RSS/Atom、sitemap、robots
 	siteStartDate: "2026-09-21", // 站点开始运行日期，用于站点统计组件计算运行天数
 	timeZone: "Asia/Shanghai", // 文章日期使用的 IANA 时区，可改为 Asia/Tokyo、Europe/Berlin 等
 
