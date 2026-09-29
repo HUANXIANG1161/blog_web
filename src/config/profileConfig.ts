@@ -18,7 +18,7 @@ export const profileConfig: ProfileConfig = {
 		{
 			name: "GitHub",
 			icon: "fa7-brands:github",
-			url: "https://github.com/TODO-your-github", // TODO: 换成你自己的 GitHub 主页，没有可以删掉这一项
+			url: "https://github.com/HUANXIANG1161",
 		},
 	],
 };

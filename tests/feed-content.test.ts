@@ -44,6 +44,34 @@ describe("feed content post-processing", () => {
 			/<script|<button|\shidden(?:=|\s|>)|\son(?:click|error)=/i,
 		);
 	});
+
+	it("flattens Expressive Code blocks into plain, line-separated code", () => {
+		// <code> 是 raw-text 元素，解析器不会把子节点建成 DOM，所以这里
+		// 用 EC 真实输出的结构来卡住「必须走字符串处理」这条约束。
+		const html = `<div class="expressive-code"><figure class="frame"><figcaption class="header"></figcaption><pre data-language="ts" class="wrap"><code><div class="ec-line"><div class="gutter"><div class="ln" aria-hidden="true">1</div></div><div class="code"><span style="--0:#000;--1:#fff">const a = 1;</span></div></div><div class="ec-line"><div class="gutter"><div class="ln" aria-hidden="true">2</div></div><div class="code"><span class="indent"><span>  </span></span><span style="--0:#000">const b = 2;</span></div></div></code></pre><div class="copy-btn-icon"></div></figure></div>`;
+
+		const result = prepareFeedHtml({
+			html,
+			site: new URL("https://example.com/"),
+			postUrl: new URL("https://example.com/posts/fixture/"),
+		});
+
+		assert.match(result, /const a = 1;/);
+		assert.match(result, /const b = 2;/);
+		// 两行之间必须有换行，否则代码会挤成一行
+		assert.match(result, /const a = 1;<\/span>\s*\n\s*<span/);
+		// 装饰性与主题相关的内容全部清掉
+		for (const noise of [
+			"ec-line",
+			"gutter",
+			"copy-btn-icon",
+			"--0:",
+			"--1:",
+			"style=",
+		]) {
+			assert.doesNotMatch(result, new RegExp(noise));
+		}
+	});
 });
 
 describe("Atom XML generation", () => {
@@ -74,5 +102,18 @@ describe("Atom XML generation", () => {
 			/<!\[CDATA\[<p>before \]\]\]\]><!\[CDATA\[> after<\/p>\]\]>/,
 		);
 		assert.match(xml, /<updated>2026-08-09T00:00:00\.000Z<\/updated>/);
+	});
+
+	it("normalizes underscore language codes to RFC 1766 form", () => {
+		const xml = buildAtomFeed({
+			title: "t",
+			subtitle: "s",
+			language: "zh_CN",
+			author: "a",
+			site: new URL("https://example.com/"),
+			items: [],
+		});
+		assert.match(xml, /xml:lang="zh-CN"/);
+		assert.doesNotMatch(xml, /zh_CN/);
 	});
 });

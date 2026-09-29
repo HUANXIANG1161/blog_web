@@ -121,7 +121,6 @@ const GLOBAL_ATTRIBUTES = [
 	"lang",
 	"dir",
 	"role",
-	"style",
 	"aria-*",
 	"data-*",
 	"hidden",
@@ -174,6 +173,46 @@ function escapeHtml(value: string): string {
 		.replaceAll(">", "&gt;")
 		.replaceAll('"', "&quot;")
 		.replaceAll("'", "&#39;");
+}
+
+/**
+ * 简化 Expressive Code 输出的代码块。
+ *
+ * 页面上的代码块依赖站点 CSS（.expressive-code 那一整套）和行内 --0/--1 主题变量
+ * 才能正常显示；feed 里没有这些 CSS，原样塞进去在阅读器中会变成一堆散乱的 span、
+ * 行号、复制按钮和颜色变量。这里把它们还原成朴素的 <pre><code>。
+ *
+ * 注意：必须在 sanitize-html 之前、且以字符串方式处理。
+ * HTML 规范里 <code> 是 raw-text 元素，HTML 解析器不会把它的子节点建成 DOM 节点，
+ * 所以 querySelectorAll(".ec-line") 是查不到的，只能对字符串做替换。
+ */
+function simplifyCodeBlocks(html: string): string {
+	const simplifyOne = (block: string): string =>
+		block
+			// 每行是 <div class="ec-line">，其中 .code 内才是真正的内容
+			.replace(
+				/<div class="ec-line"[^>]*>(?:(?!<\/div>\s*<div class="ec-line")[\s\S])*?<div class="code">([\s\S]*?)<\/div>\s*<\/div>/g,
+				(_match, inner: string) => `\n${inner}`,
+			)
+			// 行号、复制按钮、语言角标都是纯装饰
+			.replace(/<div class="gutter">[\s\S]*?<\/div>\s*<\/div>/g, "")
+			.replace(/<div class="copy-btn-icon">\s*<\/div>/g, "")
+			// 行内容器的类名没有意义了，去掉
+			.replace(/<span class="indent">/g, "<span>")
+			.replace(/<span class=""[^>]*>/g, "<span>")
+			// 只保留 <pre data-language="...">，其余 EC 的类名/属性都去掉
+			.replace(
+				/<div class="expressive-code[^"]*">([\s\S]*?)<\/div>\s*(?=<|$)/g,
+				"$1",
+			)
+			.replace(/<figure class="frame"[^>]*>/g, "<figure>")
+			.replace(/<pre([^>]*?)class="wrap"/g, "<pre$1")
+			.replace(/\s*style="[^"]*"/g, "");
+
+	// pre 区块整体处理，避免跨块误伤
+	return html.replace(/<div class="expressive-code[\s\S]*?<\/figure><\/div>/g, (block) =>
+		simplifyOne(block),
+	);
 }
 
 function expandCodeGroups(root: ReturnType<typeof parse>) {
@@ -247,12 +286,15 @@ export function prepareFeedHtml({
 	html,
 	postUrl,
 }: PrepareFeedHtmlOptions): string {
-	const root = parse(html);
-	root
-		.querySelectorAll("script,template,noscript,svg,style")
-		.forEach((node) => {
-			node.remove();
-		});
+	// 代码块简化必须走字符串，且要在 parse 之前 —— <code> 是 raw-text 元素，
+	// 解析后拿不到它的子节点（详见 simplifyCodeBlocks 的说明）。
+	const withoutScripts = html.replace(
+		/<(script|template|noscript|svg|style)\b[\s\S]*?<\/\1>/gi,
+		"",
+	);
+	const simplified = simplifyCodeBlocks(withoutScripts);
+
+	const root = parse(simplified);
 	expandCodeGroups(root);
 	absolutizeUrls(root, postUrl);
 

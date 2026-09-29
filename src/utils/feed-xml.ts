@@ -1,5 +1,16 @@
 import type { FeedContentItem } from "./feed-data";
 
+/**
+ * 把站点配置里的语言码转成 feed 规范要求的 RFC 1766 形式。
+ *
+ * siteConfig.lang 用的是下划线形式（zh_CN / zh_TW），而 RSS 2.0 的 <language>
+ * 和 Atom 的 xml:lang 都要求连字符形式（zh-CN / zh-TW）。下划线形式不合规范，
+ * 严格的阅读器会忽略甚至报错。
+ */
+export function toFeedLanguage(lang: string): string {
+	return lang.replaceAll("_", "-");
+}
+
 export function escapeXml(value: unknown): string {
 	return String(value ?? "")
 		.replaceAll("&", "&amp;")
@@ -56,7 +67,7 @@ export function buildAtomFeed({
 		.join("\n");
 
 	return `<?xml version="1.0" encoding="utf-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="${escapeXml(language)}">
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="${escapeXml(toFeedLanguage(language))}">
   <title>${escapeXml(title)}</title>
   <subtitle>${escapeXml(subtitle)}</subtitle>
   <link href="${escapeXml(site.href)}" rel="alternate" type="text/html"/>

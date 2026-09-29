@@ -147,8 +147,7 @@ export const navBarConfig: NavBarConfig = {
 				},
 				{
 					name: "GitHub",
-					// TODO: 换成你自己的 GitHub 主页
-					url: "https://github.com/TODO-your-github",
+					url: "https://github.com/HUANXIANG1161",
 					external: true,
 					icon: "fa7-brands:github",
 				},
