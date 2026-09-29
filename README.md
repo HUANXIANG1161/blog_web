@@ -68,14 +68,6 @@ public/
 - **GitHub 链接**：`src/config/profileConfig.ts` 和 `src/config/navBarConfig.ts` 里各有一处
   `TODO-your-github` 占位，没有 GitHub 账号可以把对应项删掉。
 
-## 已经删掉的东西
-
-原主题自带但本站没有启用的功能，对应的页面、组件、数据、脚本和资源已经清理：
-番剧、时间线、设备、AI 工具、评论（Twikoo/Giscus）、音乐播放器、Live2D 看板娘、
-樱花特效、OG 图片生成、IndexNow 提交。
-
-因此 `siteConfig.featurePages` 里只剩下日记、友链、项目、技能、相册五个开关。
-
 ## 说明
 
 - 文章图片有两种引用基准：以 `/` 开头是相对 `public/`，否则相对当前 Markdown 文件。
