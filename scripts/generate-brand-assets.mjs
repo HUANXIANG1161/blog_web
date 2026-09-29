@@ -115,12 +115,17 @@ await sharp(Buffer.from(wordmarkSvg("#f9fafb")))
 	.webp({ quality: 92 })
 	.toFile(path.join(homeDir, "default-logo-dark.webp"));
 
-// .ico：透明底，只要白色地球仪本身
+// .ico：透明底，白色地球仪 + 半透明深色描边。
+// 纯白线条在浅色浏览器标签栏上会完全看不见，所以必须留一圈描边。
 const icoSizes = [16, 32, 48, 64, 128, 256];
 const pngs = await Promise.all(
 	icoSizes.map((size) =>
 		// 小尺寸下去掉留白，否则 16px 会糊成一团
-		sharp(Buffer.from(globeSvg(1024, size <= 32 ? 0.0 : 0.04, false)))
+		sharp(
+			Buffer.from(
+				globeSvg(1024, size <= 32 ? 0.0 : 0.04, false, "rgba(55,65,81,0.6)"),
+			),
+		)
 			.resize(size, size)
 			.png()
 			.toBuffer(),
