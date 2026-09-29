@@ -20,7 +20,13 @@ export interface DiaryItem {
 	tags?: string[];
 }
 
-const diaryData: DiaryItem[] = [];
+const diaryData: DiaryItem[] = [
+	{
+		id: 1,
+		content: "我怎么知道",
+		date: "2026-09-29T17:06:00+08:00",
+	},
+];
 
 // 获取日记列表（按时间倒序）
 export const getDiaryList = (limit?: number) => {

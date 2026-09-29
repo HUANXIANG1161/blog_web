@@ -600,7 +600,7 @@ const bannerFormats = getImageFormats();
 			<div class="w-4/5 lg:w-3/4 text-center mb-0">
 				<div class="flex flex-col">
 					{overlayTitle && (
-						<h1 class="banner-title text-6xl lg:text-8xl text-white drop-shadow-lg mb-2 lg:mb-4">
+						<h1 class="banner-title text-6xl lg:text-8xl mb-2 lg:mb-4">
 							{overlayTitle}
 						</h1>
 					)}
@@ -738,9 +738,17 @@ const bannerFormats = getImageFormats();
 <style>
 	/* Banner 文本样式 */
 	.banner-title {
-		text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+		/* 淡蓝色主标题。换了一套字体栈（几何无衬线/圆体优先），
+		   避免和正文字体撞脸。字形和颜色只在本组件内生效，不影响别处。 */
+		color: #a5d8ff;
+		font-family:
+			"Trebuchet MS", "Avenir Next", "Segoe UI Variable Display", "Segoe UI",
+			"PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+		font-weight: 700;
+		letter-spacing: 0.02em;
+		/* 浅色字压在图片上仍然要看得清，所以保留描边，只是比原来更柔和 */
+		text-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
 		animation: fadeInUp 1s ease-out;
-		font-weight: bold;
 	}
 
 	.banner-subtitle {

@@ -1,23 +1,26 @@
 ## 关于我
 
-这里是 **幻想1161** 的个人博客。
+这里是 **幻想1161** 的个人网站。
 
-平时喜欢折腾各种技术和工具，踩完坑之后总想着「这个得记下来」，于是就有了这个站点。内容大概会围绕技术折腾、日常随想，以及一些没什么用但挺有意思的东西。
+中南大学大三 CS 在读，主要写 Cpp 和 py，Java 学习中。学艺不精，这个网页全是用现有的模版套出来的，但是也花了我不少时间（真的吗
+
+音游主修 Arcaea(13.201) 和 Maimai DX（16291），可以在 IP 归属地找我线下约勤。
+
+Geometry Dash 一千八百多小时坐牢记录，除此之外还玩玩 sl 尖塔，hk12，雀，tr。
+
+没了。
+
+![一只看起来很无奈的毛绒玩偶，配字 "I just your took ability for read to 5 seconds"](/images/about/20260929-165311.png)
+
+## linktree
+
+- QQ：1191247557
+- Bilibili：[space.bilibili.com/101263758](https://space.bilibili.com/101263758)
+- email：gongjiabin1@outlook.com
+- github：[https://github.com/HUANXIANG1161](https://github.com/HUANXIANG1161)
 
 ## 关于本站
 
-站点用 [Astro](https://astro.build/) 构建，基于 [LyraVoid/Mizuki](https://github.com/LyraVoid/Mizuki) 主题改造。这个主题本身是开源的，感兴趣可以去看看：
+站点用 [Astro](https://astro.build/) 构建，基于 [LyraVoid/Mizuki](https://github.com/LyraVoid/Mizuki) 主题改造：
 
 ::github{repo="LyraVoid/Mizuki"}
-
-在此基础上做了这些调整：
-
-- 清理掉了模版遗留的示例内容和未启用的功能页面
-- 站点信息、个人资料全部换成了自己的
-- 修掉了构建时的类型报错
-
-## 联系方式
-
-- Bilibili：[space.bilibili.com/101263758](https://space.bilibili.com/101263758)
-
-如果这里的某篇文章正好帮到你，那就太好了。

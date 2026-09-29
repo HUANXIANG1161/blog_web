@@ -41,8 +41,10 @@ const CJK_FONT = "Microsoft YaHei, SimHei, sans-serif";
  * @param {number} size 画布边长
  * @param {number} inset 图标相对画布的留白比例（0 = 铺满）
  * @param {boolean} plate 是否加圆角底板
+ * @param {string|null} outline 描边颜色；传颜色会在白色线条外再描一圈，
+ *   用于透明底场景（浅色背景下纯白线条会看不见）
  */
-function globeSvg(size, inset, plate) {
+function globeSvg(size, inset, plate, outline = null) {
 	const pad = size * inset;
 	const box = size - pad * 2;
 	const cx = size / 2;
@@ -54,6 +56,14 @@ function globeSvg(size, inset, plate) {
 	const latRy = r * 0.45;
 	const stroke = Math.max(size * 0.055, 2);
 	const plateR = box * 0.22;
+
+	// 同样的线条画两遍：先画深色描边，再盖上白色，形成外描边效果
+	const lines = (color, width) => `<g fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round">
+    <circle cx="${cx}" cy="${cy}" r="${r}"/>
+    <ellipse cx="${cx}" cy="${cy}" rx="${meridianRx}" ry="${r}"/>
+    <line x1="${cx - r}" y1="${cy}" x2="${cx + r}" y2="${cy}"/>
+    <ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${latRy}"/>
+  </g>`;
 
 	return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
   <defs>
@@ -67,12 +77,8 @@ function globeSvg(size, inset, plate) {
 			? `<rect x="${pad}" y="${pad}" width="${box}" height="${box}" rx="${plateR}" fill="url(#plate)"/>`
 			: ""
 	}
-  <g fill="none" stroke="${GLOBE_STROKE}" stroke-width="${stroke}" stroke-linecap="round">
-    <circle cx="${cx}" cy="${cy}" r="${r}"/>
-    <ellipse cx="${cx}" cy="${cy}" rx="${meridianRx}" ry="${r}"/>
-    <line x1="${cx - r}" y1="${cy}" x2="${cx + r}" y2="${cy}"/>
-    <ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${latRy}"/>
-  </g>
+  ${outline ? lines(outline, stroke * 1.9) : ""}
+  ${lines(GLOBE_STROKE, stroke)}
 </svg>`;
 }
 
@@ -95,12 +101,13 @@ function wordmarkSvg(textColor) {
 await mkdir(homeDir, { recursive: true });
 await mkdir(faviconDir, { recursive: true });
 
-// 顶栏图标
-await sharp(Buffer.from(globeSvg(1024, 0.04, true)))
+// 顶栏图标：透明底，白色地球仪 + 半透明深色描边。
+// 顶栏背景在浅色/深色模式下都会变，纯白线条在浅色背景下会糊掉，所以留一圈描边。
+await sharp(Buffer.from(globeSvg(1024, 0.04, false, "rgba(55,65,81,0.55)")))
 	.webp({ quality: 92 })
 	.toFile(path.join(homeDir, "home.webp"));
 
-// 备用横版文字 Logo
+// 备用横版文字 Logo（带蓝色底板）
 await sharp(Buffer.from(wordmarkSvg("#1f2937")))
 	.webp({ quality: 92 })
 	.toFile(path.join(homeDir, "default-logo.webp"));
@@ -108,12 +115,12 @@ await sharp(Buffer.from(wordmarkSvg("#f9fafb")))
 	.webp({ quality: 92 })
 	.toFile(path.join(homeDir, "default-logo-dark.webp"));
 
-// .ico 内嵌 PNG，尺寸从 16 到 256
+// .ico：透明底，只要白色地球仪本身
 const icoSizes = [16, 32, 48, 64, 128, 256];
 const pngs = await Promise.all(
 	icoSizes.map((size) =>
-		// 小尺寸下去掉留白、描边加粗，否则 16px 会糊成一团
-		sharp(Buffer.from(globeSvg(1024, size <= 32 ? 0.0 : 0.04, true)))
+		// 小尺寸下去掉留白，否则 16px 会糊成一团
+		sharp(Buffer.from(globeSvg(1024, size <= 32 ? 0.0 : 0.04, false)))
 			.resize(size, size)
 			.png()
 			.toBuffer(),

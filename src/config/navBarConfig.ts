@@ -151,11 +151,6 @@ export const navBarConfig: NavBarConfig = {
 					external: true,
 					icon: "fa7-brands:github",
 				},
-				{
-					name: "RSS",
-					url: "/rss.xml",
-					icon: "material-symbols:rss-feed",
-				},
 			],
 		},
 

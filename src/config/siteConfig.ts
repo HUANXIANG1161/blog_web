@@ -5,7 +5,7 @@ const SITE_LANG = "zh_CN"; // 语言代码，例如：'en', 'zh_CN', 'ja' 等。
 
 export const siteConfig: SiteConfig = {
 	title: "幻想1161",
-	subtitle: "幻想1161 的个人博客",
+	subtitle: "幻想1161",
 	siteURL: "https://TODO-your-domain.com/", // TODO: 替换成你自己的域名，必须以斜杠结尾
 	siteStartDate: "2026-09-21", // 站点开始运行日期，用于站点统计组件计算运行天数
 	timeZone: "Asia/Shanghai", // 文章日期使用的 IANA 时区，可改为 Asia/Tokyo、Europe/Berlin 等
@@ -138,14 +138,10 @@ export const siteConfig: SiteConfig = {
 
 		homeText: {
 			enable: true,
-			title: "幻想1161",
+			title: "fantasy1161",
 			switchable: true,
 
-			subtitle: [
-				"想到什么就写什么",
-				"记录折腾过的技术和踩过的坑",
-				"欢迎随便逛逛",
-			],
+			subtitle: ["想到什么就写什么"],
 			typewriter: {
 				enable: true, // 启用副标题打字机效果
 

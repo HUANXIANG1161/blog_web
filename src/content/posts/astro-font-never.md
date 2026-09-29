@@ -2,8 +2,8 @@
 title: Astro Font API 在关闭自定义字体时的类型错误
 published: 2026-09-29
 description: 记录一次 astro check 报出的 "Type 'string' is not assignable to type 'never'"，原因在 Astro Font API 生成的 CssVariable 类型会在 fonts 为空数组时退化成 never。
-tags: [Astro, TypeScript, 踩坑]
-category: 折腾记录
+tags: [Astro, TypeScript]
+category: 记录
 draft: false
 ---
 
