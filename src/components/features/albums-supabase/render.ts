@@ -22,13 +22,6 @@ function escapeHtml(value: unknown): string {
 	return String(value ?? "").replace(/[&<>"']/g, (c) => map[c]);
 }
 
-function formatDate(value: string | null, fallback: string): string {
-	const raw = value || fallback;
-	if (!raw) return "";
-	const time = new Date(raw).getTime();
-	if (Number.isNaN(time)) return "";
-	return new Date(raw).toLocaleDateString("zh-CN");
-}
 
 /** 生成一张相册卡（对应 AlbumCard.astro 的结构） */
 function renderAlbumCard(
@@ -41,10 +34,6 @@ function renderAlbumCard(
 	const coverHtml = cover
 		? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(album.title)}" class="w-full h-full object-cover pointer-events-none transition-transform duration-500 group-hover:scale-105" loading="lazy" decoding="async" />`
 		: `<div class="w-full h-full bg-(--btn-regular-bg) flex items-center justify-center"><iconify-icon icon="material-symbols:photo-library" class="text-5xl text-black/20 dark:text-white/20"></iconify-icon></div>`;
-
-	const tagsHtml =
-		album.location &&
-		`<div class="flex items-center gap-3 text-xs text-white/70 mt-1.5 flex-wrap"><span class="inline-flex items-center gap-0.5">${escapeHtml(album.location)}</span></div>`;
 
 	// data-no-swup：让这个链接走普通页面跳转，不要被 Swup 拦截。
 	//
@@ -62,10 +51,6 @@ function renderAlbumCard(
 		<div class="absolute bottom-0 left-0 right-0 p-4">
 			<h3 class="font-bold text-base text-white line-clamp-1 drop-shadow-lg">${escapeHtml(album.title)}</h3>
 			${album.description ? `<p class="text-xs text-white/75 line-clamp-1 mt-1 leading-relaxed" title="${escapeHtml(album.description)}">${escapeHtml(album.description)}</p>` : ""}
-			<div class="flex items-center gap-3 text-xs text-white/70 mt-1.5 flex-wrap">
-				<span>${escapeHtml(formatDate(album.date, album.created_at))}</span>
-			</div>
-			${tagsHtml}
 		</div>
 	</div>
 </a>`;

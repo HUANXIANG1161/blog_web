@@ -474,8 +474,6 @@ export const zh_TW: Translation = {
 	[Key.albumsAdminAlbumTitle]: "相簿名稱",
 	[Key.albumsAdminAlbumTitlePlaceholder]: "例如：2026 春天",
 	[Key.albumsAdminAlbumDescription]: "相簿描述",
-	[Key.albumsAdminAlbumLocation]: "地點",
-	[Key.albumsAdminAlbumDate]: "日期",
 	[Key.albumsAdminCreateAlbum]: "建立相簿",
 	[Key.albumsAdminCreating]: "建立中…",
 	[Key.albumsAdminAlbumCreated]: "相簿已建立",

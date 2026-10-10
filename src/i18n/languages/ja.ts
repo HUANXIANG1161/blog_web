@@ -489,8 +489,6 @@ export const ja: Translation = {
 	[Key.albumsAdminAlbumTitle]: "アルバム名",
 	[Key.albumsAdminAlbumTitlePlaceholder]: "例：2026年春",
 	[Key.albumsAdminAlbumDescription]: "アルバムの説明",
-	[Key.albumsAdminAlbumLocation]: "場所",
-	[Key.albumsAdminAlbumDate]: "日付",
 	[Key.albumsAdminCreateAlbum]: "アルバムを作成",
 	[Key.albumsAdminCreating]: "作成中…",
 	[Key.albumsAdminAlbumCreated]: "アルバムを作成しました",

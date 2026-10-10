@@ -4,10 +4,6 @@ export interface AlbumGroupRow {
 	/** 相册名，同时作为前台展示的标题 */
 	title: string;
 	description: string;
-	/** 拍摄地点，可空 */
-	location: string;
-	/** 相册日期，可空；空时前台用创建时间 */
-	date: string | null;
 	/** 封面图地址。上传第一张照片时自动设为它，之后可在管理页更换 */
 	cover: string | null;
 	created_at: string;

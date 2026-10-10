@@ -121,20 +121,6 @@ async function run(): Promise<void> {
 			}
 		}
 
-		if (album.date) {
-			const wrap = document.getElementById("album-date-wrap");
-			const el = document.getElementById("album-date");
-			if (el) el.textContent = new Date(album.date).toLocaleDateString("zh-CN");
-			wrap?.classList.remove("hidden");
-		}
-
-		if (album.location) {
-			const wrap = document.getElementById("album-location-wrap");
-			const el = document.getElementById("album-location");
-			if (el) el.textContent = album.location;
-			wrap?.classList.remove("hidden");
-		}
-
 		const countEl = document.getElementById("album-count");
 		if (countEl) countEl.textContent = String(photos.length);
 

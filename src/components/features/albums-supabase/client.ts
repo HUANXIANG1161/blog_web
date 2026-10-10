@@ -28,7 +28,7 @@ const PHOTOS_TABLE = "album_photos";
 /** 图片存储桶名 */
 const BUCKET = "albums";
 
-const GROUP_COLUMNS = "id,title,description,location,date,cover,created_at";
+const GROUP_COLUMNS = "id,title,description,cover,created_at";
 const PHOTO_COLUMNS =
 	"id,album_id,src,thumbnail,title,description,created_at";
 
@@ -179,8 +179,6 @@ export async function fetchAlbumsWithPhotos(
 export async function createAlbum(input: {
 	title: string;
 	description: string;
-	location: string;
-	date: string | null;
 }): Promise<AlbumGroupRow> {
 	const supabase = createSupabaseClient();
 	const { data, error } = await runQuery(
@@ -189,8 +187,6 @@ export async function createAlbum(input: {
 			.insert({
 				title: input.title,
 				description: input.description,
-				location: input.location,
-				date: input.date,
 			})
 			.select(GROUP_COLUMNS)
 			.single(),
@@ -207,8 +203,6 @@ export async function updateAlbum(
 	input: {
 		title?: string;
 		description?: string;
-		location?: string;
-		date?: string | null;
 		cover?: string | null;
 	},
 ): Promise<void> {

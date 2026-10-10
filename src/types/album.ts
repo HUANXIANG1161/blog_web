@@ -6,8 +6,6 @@ export interface Photo {
 	thumbnail?: string;
 	tags?: string[];
 	description?: string;
-	date?: string;
-	location?: string;
 	width?: number;
 	height?: number;
 }
@@ -17,8 +15,6 @@ export interface AlbumGroup {
 	title: string;
 	description?: string;
 	cover: string;
-	date: string;
-	location?: string;
 	tags?: string[];
 	photos: Photo[];
 	password?: string;

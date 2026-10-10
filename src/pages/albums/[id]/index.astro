@@ -101,24 +101,6 @@ if (isEncrypted) {
 						<div class="flex items-center gap-4 text-sm text-white/80 flex-wrap">
 							<span class="inline-flex items-center gap-1">
 								<Icon
-									name="material-symbols:calendar-today"
-									class="text-sm"
-								/>
-								{new Date(album.date).toLocaleDateString(
-									"zh-CN",
-								)}
-							</span>
-							{album.location && (
-								<span class="inline-flex items-center gap-1">
-									<Icon
-										name="material-symbols:location-on"
-										class="text-sm"
-									/>
-									{album.location}
-								</span>
-							)}
-							<span class="inline-flex items-center gap-1">
-								<Icon
 									name="material-symbols:photo-library"
 									class="text-sm"
 								/>
@@ -155,21 +137,9 @@ if (isEncrypted) {
 					<div class="flex items-center gap-4 text-sm text-neutral-500 dark:text-neutral-400 mt-2 flex-wrap">
 						<span class="inline-flex items-center gap-1">
 							<Icon
-								name="material-symbols:calendar-today"
+								name="material-symbols:photo-library"
 								class="text-sm"
 							/>
-							{new Date(album.date).toLocaleDateString("zh-CN")}
-						</span>
-						{album.location && (
-							<span class="inline-flex items-center gap-1">
-								<Icon
-									name="material-symbols:location-on"
-									class="text-sm"
-								/>
-								{album.location}
-							</span>
-						)}
-						<span>
 							{album.photos.length}{" "}
 							{i18n(I18nKey.albumsPhotosCount)}
 						</span>

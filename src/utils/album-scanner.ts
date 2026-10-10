@@ -52,8 +52,6 @@ async function processAlbumFolder(
 		hidden?: boolean;
 		title?: string;
 		description?: string;
-		date?: string;
-		location?: string;
 		tags?: string[];
 		password?: string;
 		passwordHint?: string;
@@ -113,8 +111,7 @@ async function processAlbumFolder(
 		title: info.title || folderName,
 		description: info.description || "",
 		cover,
-		date: info.date || new Date().toISOString().split("T")[0],
-		location: info.location || "",
+
 		tags: info.tags || [],
 		photos,
 		password: info.password || undefined,
@@ -160,9 +157,6 @@ function scanPhotos(folderPath: string, albumId: string): Photo[] {
 	}
 
 	imageFiles.forEach((file, index) => {
-		const filePath = path.join(folderPath, file);
-		const stats = fs.statSync(filePath);
-
 		const { baseName, tags } = parseFileName(file);
 
 		const src = fileWebpMap.has(file)
@@ -175,7 +169,6 @@ function scanPhotos(folderPath: string, albumId: string): Photo[] {
 			alt: baseName,
 			title: baseName,
 			tags: tags,
-			date: stats.mtime.toISOString().split("T")[0],
 		});
 	});
 
@@ -191,8 +184,6 @@ function processExternalPhotos(
 		title?: string;
 		description?: string;
 		tags?: string[];
-		date?: string;
-		location?: string;
 		width?: number;
 		height?: number;
 	}[],
@@ -214,8 +205,6 @@ function processExternalPhotos(
 			title: photo.title,
 			description: photo.description,
 			tags: photo.tags || [],
-			date: photo.date || new Date().toISOString().split("T")[0],
-			location: photo.location,
 			width: photo.width,
 			height: photo.height,
 			// camera: photo.camera,

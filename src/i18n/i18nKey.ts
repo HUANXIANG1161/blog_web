@@ -464,8 +464,6 @@ enum I18nKey {
 	albumsAdminAlbumTitle = "albumsAdminAlbumTitle",
 	albumsAdminAlbumTitlePlaceholder = "albumsAdminAlbumTitlePlaceholder",
 	albumsAdminAlbumDescription = "albumsAdminAlbumDescription",
-	albumsAdminAlbumLocation = "albumsAdminAlbumLocation",
-	albumsAdminAlbumDate = "albumsAdminAlbumDate",
 	albumsAdminCreateAlbum = "albumsAdminCreateAlbum",
 	albumsAdminCreating = "albumsAdminCreating",
 	albumsAdminAlbumCreated = "albumsAdminAlbumCreated",
