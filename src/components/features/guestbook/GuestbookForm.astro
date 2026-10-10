@@ -1,0 +1,171 @@
+---
+import { Icon } from "astro-icon/components";
+
+import { guestbookConfig } from "@/config";
+import I18nKey from "@/i18n/i18nKey";
+import { i18n } from "@/i18n/translation";
+
+const t = (key: I18nKey) => i18n(key);
+
+const maxImageMb = (guestbookConfig.imageMaxBytes / 1024 / 1024).toFixed(0);
+---
+
+<!--
+	留言表单。
+	纯静态页面上没有服务端，所以这里只负责收集和校验，真正的提交由
+	页面里的脚本通过 Supabase 完成（见 guestbook.astro 的 client 脚本）。
+-->
+<form
+	id="guestbook-form"
+	class="card-base p-5 sm:p-7"
+	novalidate
+	data-captcha-enabled={guestbookConfig.captcha.enable ? "true" : "false"}
+	data-captcha-sitekey={guestbookConfig.captcha.siteKey}
+	data-message-max={guestbookConfig.messageMaxLength}
+	data-name-max={guestbookConfig.nameMaxLength}
+	data-image-max-mb={maxImageMb}
+	data-msg-image-too-large={t(I18nKey.guestbookImageTooLarge)}
+	data-msg-image-bad-type={t(I18nKey.guestbookImageBadType)}
+	data-msg-name-required={t(I18nKey.guestbookNameRequired)}
+	data-msg-message-required={t(I18nKey.guestbookMessageRequired)}
+	data-msg-captcha-required={t(I18nKey.guestbookCaptchaRequired)}
+	data-msg-submitting={t(I18nKey.guestbookSubmitting)}
+	data-msg-submitted={t(I18nKey.guestbookSubmitted)}
+	data-msg-failed={t(I18nKey.guestbookSubmitFailed)}
+>
+	<h2
+		class="flex items-center gap-2 text-lg font-bold text-black/90 dark:text-white/90 mb-5"
+	>
+		<Icon name="material-symbols:edit-square-outline" class="text-(--primary)" />
+		{t(I18nKey.guestbookFormTitle)}
+	</h2>
+
+	<!-- 昵称 -->
+	<div class="mb-4">
+		<label
+			for="guestbook-name"
+			class="block text-sm font-medium text-black/70 dark:text-white/70 mb-2"
+		>
+			{t(I18nKey.guestbookName)}
+			<span class="text-(--primary)">*</span>
+		</label>
+		<input
+			type="text"
+			id="guestbook-name"
+			name="name"
+			maxlength={guestbookConfig.nameMaxLength}
+			placeholder={t(I18nKey.guestbookNamePlaceholder)}
+			autocomplete="nickname"
+			class="w-full px-4 py-2.5 rounded-lg bg-(--btn-regular-bg)
+				text-black/90 dark:text-white/90
+				border border-black/10 dark:border-white/10
+				placeholder:text-black/35 dark:placeholder:text-white/35
+				focus:outline-none focus:ring-2 focus:ring-(--primary)/50
+				transition-all duration-200"
+		/>
+	</div>
+
+	<!-- 留言内容 -->
+	<div class="mb-4">
+		<label
+			for="guestbook-content"
+			class="block text-sm font-medium text-black/70 dark:text-white/70 mb-2"
+		>
+			{t(I18nKey.guestbookMessage)}
+			<span class="text-(--primary)">*</span>
+		</label>
+		<textarea
+			id="guestbook-content"
+			name="content"
+			rows="4"
+			maxlength={guestbookConfig.messageMaxLength}
+			placeholder={t(I18nKey.guestbookMessagePlaceholder)}
+			class="w-full px-4 py-2.5 rounded-lg bg-(--btn-regular-bg) resize-y
+				text-black/90 dark:text-white/90
+				border border-black/10 dark:border-white/10
+				placeholder:text-black/35 dark:placeholder:text-white/35
+				focus:outline-none focus:ring-2 focus:ring-(--primary)/50
+				transition-all duration-200"
+		></textarea>
+		<div
+			class="mt-1.5 text-xs text-black/40 dark:text-white/40 text-right tabular-nums"
+		>
+			<span id="guestbook-content-count">0</span>/{guestbookConfig.messageMaxLength}
+		</div>
+	</div>
+
+	<!-- 图片附件 -->
+	<div class="mb-5">
+		<div class="flex flex-wrap items-center gap-3">
+			<label
+				for="guestbook-image"
+				class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg cursor-pointer
+					text-sm font-medium text-black/70 dark:text-white/70
+					bg-(--btn-regular-bg) border border-black/10 dark:border-white/10
+					hover:border-(--primary) hover:text-(--primary)
+					transition-all duration-200"
+			>
+				<Icon name="material-symbols:add-photo-alternate-outline" />
+				{t(I18nKey.guestbookAttachImage)}
+			</label>
+			<input
+				type="file"
+				id="guestbook-image"
+				name="image"
+				accept={guestbookConfig.imageAllowedTypes.join(",")}
+				class="hidden"
+			/>
+			<span class="text-xs text-black/40 dark:text-white/40">
+				JPG / PNG / WebP / GIF，≤ {maxImageMb}MB
+			</span>
+		</div>
+
+		<!-- 选中后的预览，未选图片时不显示 -->
+		<div id="guestbook-image-preview" class="hidden mt-3 relative inline-block">
+			<img
+				id="guestbook-image-preview-img"
+				alt=""
+				class="max-h-40 rounded-lg border border-black/10 dark:border-white/10"
+			/>
+			<button
+				type="button"
+				id="guestbook-image-remove"
+				aria-label={t(I18nKey.guestbookRemoveImage)}
+				class="absolute -top-2 -right-2 w-7 h-7 rounded-full flex items-center justify-center
+					bg-(--primary) text-white shadow-md hover:scale-110 transition-transform"
+			>
+				<Icon name="material-symbols:close" class="text-base" />
+			</button>
+		</div>
+	</div>
+
+	<!-- 蜜罐字段：正常用户看不见也不会填，机器人通常会填 -->
+	<div class="hidden" aria-hidden="true">
+		<label for="guestbook-website">Website</label>
+		<input type="text" id="guestbook-website" name="website" tabindex="-1" autocomplete="off" />
+	</div>
+
+	<!-- 人机验证容器，由脚本按需渲染 -->
+	<div id="guestbook-captcha" class="mb-5 empty:mb-0"></div>
+
+	<!-- 状态提示 -->
+	<div
+		id="guestbook-status"
+		class="hidden mb-4 px-4 py-3 rounded-lg text-sm"
+		role="status"
+		aria-live="polite"
+	>
+	</div>
+
+	<button
+		type="submit"
+		id="guestbook-submit"
+		class="btn-regular w-full sm:w-auto px-6 py-2.5 rounded-lg font-medium
+			bg-(--primary) text-white hover:opacity-90
+			disabled:opacity-50 disabled:cursor-not-allowed
+			transition-all duration-200 inline-flex items-center justify-center gap-2"
+	>
+		<Icon name="material-symbols:send-outline" />
+		<span id="guestbook-submit-text">{t(I18nKey.guestbookSubmit)}</span>
+	</button>
+</form>

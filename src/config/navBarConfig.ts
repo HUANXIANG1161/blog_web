@@ -192,6 +192,13 @@ export const navBarConfig: NavBarConfig = {
 			],
 		},
 
+		// 留言板：作为一级入口，和「归档」并列
+		{
+			name: "留言板",
+			url: "/guestbook/",
+			icon: "material-symbols:forum-outline",
+		},
+
 		// 自定义一级下拉菜单示例：其他页面
 		{
 			name: "Others",

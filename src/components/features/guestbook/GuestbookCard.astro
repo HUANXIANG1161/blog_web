@@ -1,0 +1,121 @@
+---
+import { Icon } from "astro-icon/components";
+
+import type { GuestbookMessage } from "./types";
+
+interface Props {
+	message: GuestbookMessage;
+	justNowLabel: string;
+}
+
+const { message, justNowLabel } = Astro.props;
+
+// 用昵称首字符做头像占位，避免依赖外链头像服务
+const initial = message.name.trim().charAt(0).toUpperCase() || "?";
+---
+
+<article
+	class="guestbook-card group relative bg-transparent rounded-xl border border-black/10 dark:border-white/10 overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+	data-message-id={message.id}
+>
+	<div class="p-5">
+		<!-- 头部：头像 + 昵称 + 时间 -->
+		<div class="flex items-center gap-3 mb-3">
+			<div
+				class="w-10 h-10 shrink-0 rounded-lg flex items-center justify-center
+					bg-(--primary)/12 text-(--primary) font-bold select-none"
+				aria-hidden="true"
+			>
+				{initial}
+			</div>
+			<div class="min-w-0 flex-1">
+				<div
+					class="font-semibold text-black/90 dark:text-white/90 truncate
+						group-hover:text-(--primary) transition-colors duration-200"
+				>
+					{message.name}
+				</div>
+				<div
+					class="flex items-center gap-1 text-xs text-black/45 dark:text-white/45"
+				>
+					<Icon name="material-symbols:schedule" class="w-3.5 h-3.5" />
+					<time
+						datetime={message.created_at}
+						data-guestbook-time={message.created_at}
+						data-just-now={justNowLabel}
+					>
+						{message.created_at}
+					</time>
+				</div>
+			</div>
+			<span
+				class="shrink-0 text-xs text-black/25 dark:text-white/25 tabular-nums"
+				aria-hidden="true">#{message.id}</span
+			>
+		</div>
+
+		<!-- 正文：保留换行 -->
+		<p
+			class="text-sm md:text-base text-black/85 dark:text-white/85 leading-relaxed whitespace-pre-wrap break-words"
+		>
+			{message.content}
+		</p>
+
+		<!-- 附图 -->
+		{
+			message.image_url && (
+				<div class="mt-3">
+					<a
+						href={message.image_url}
+						data-fancybox={`guestbook-${message.id}`}
+						class="block max-w-xs rounded-lg overflow-hidden border border-black/5 dark:border-white/10"
+					>
+						<img
+							src={message.image_url}
+							alt={`${message.name} 附带的图片`}
+							class="w-full h-auto object-cover transition-transform duration-300 hover:scale-105"
+							loading="lazy"
+							decoding="async"
+						/>
+					</a>
+				</div>
+			)
+		}
+	</div>
+
+	<!-- 悬停渐变，与技能卡片、日记卡片保持一致 -->
+	<div
+		class="absolute inset-0 bg-linear-to-br from-(--primary)/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-xl"
+	>
+	</div>
+</article>
+
+<style is:global>
+	.guestbook-card {
+		animation: guestbookFadeInUp 0.45s ease-out both;
+	}
+
+	@keyframes guestbookFadeInUp {
+		from {
+			opacity: 0;
+			transform: translateY(16px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	/* 交错出现，最多铺开到第 12 条，再多就不再延迟，避免列表底部等待过久 */
+	.guestbook-card:nth-child(1) { animation-delay: 0.02s; }
+	.guestbook-card:nth-child(2) { animation-delay: 0.05s; }
+	.guestbook-card:nth-child(3) { animation-delay: 0.08s; }
+	.guestbook-card:nth-child(4) { animation-delay: 0.11s; }
+	.guestbook-card:nth-child(5) { animation-delay: 0.14s; }
+	.guestbook-card:nth-child(6) { animation-delay: 0.17s; }
+	.guestbook-card:nth-child(7) { animation-delay: 0.2s; }
+	.guestbook-card:nth-child(8) { animation-delay: 0.23s; }
+	.guestbook-card:nth-child(9) { animation-delay: 0.26s; }
+	.guestbook-card:nth-child(10) { animation-delay: 0.29s; }
+	.guestbook-card:nth-child(n + 11) { animation-delay: 0.32s; }
+</style>

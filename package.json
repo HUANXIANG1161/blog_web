@@ -37,6 +37,7 @@
     "@expressive-code/plugin-line-numbers": "^0.44.1",
     "@fancyapps/ui": "^6.1.14",
     "@iconify/svelte": "^5.2.2",
+    "@supabase/supabase-js": "^2.117.3",
     "@swup/astro": "^1.8.0",
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.3.3",

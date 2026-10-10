@@ -102,6 +102,26 @@ declare global {
 	 * Astro 在构建时把值序列化进脚本，类型检查看不到这层注入，故在此声明。
 	 */
 	var encryptedContent: string;
+
+	/**
+	 * hCaptcha 的全局对象，由 https://js.hcaptcha.com/1/api.js 注入。
+	 * 留言板用它做人机验证，只有开启验证时才会加载该脚本。
+	 */
+	var hcaptcha:
+		| {
+				render: (
+					container: HTMLElement,
+					options: {
+						sitekey: string;
+						theme?: "light" | "dark";
+						callback?: (token: string) => void;
+						"expired-callback"?: () => void;
+						"error-callback"?: () => void;
+					},
+				) => string;
+				reset: (widgetId?: string) => void;
+		  }
+		| undefined;
 }
 
 interface SearchResult {

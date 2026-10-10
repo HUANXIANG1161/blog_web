@@ -1,0 +1,39 @@
+---
+import { Icon } from "astro-icon/components";
+
+import { guestbookConfig } from "@/config";
+import I18nKey from "@/i18n/i18nKey";
+import { i18n } from "@/i18n/translation";
+
+const t = (key: I18nKey) => i18n(key);
+---
+
+<!-- 留言规则栏 -->
+<section
+	class="rounded-xl border border-(--primary)/25 bg-(--primary)/6 overflow-hidden mb-6"
+	aria-labelledby="guestbook-rules-title"
+>
+	<div class="p-5 sm:p-6">
+		<h2
+			id="guestbook-rules-title"
+			class="flex items-center gap-2 text-base font-bold text-(--primary) mb-3"
+		>
+			<Icon name="material-symbols:gavel" class="text-lg" />
+			{t(I18nKey.guestbookRules)}
+		</h2>
+
+		<ul class="space-y-2">
+			{
+				guestbookConfig.rules.map((rule) => (
+					<li class="flex items-start gap-2 text-sm text-black/75 dark:text-white/75 leading-relaxed">
+						<Icon
+							name="material-symbols:check-small-rounded"
+							class="text-(--primary) text-base shrink-0 mt-0.5"
+						/>
+						<span>{rule}</span>
+					</li>
+				))
+			}
+		</ul>
+	</div>
+</section>

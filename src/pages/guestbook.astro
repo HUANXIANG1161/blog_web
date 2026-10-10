@@ -1,0 +1,470 @@
+---
+import { Icon } from "astro-icon/components";
+
+import {
+	GuestbookForm,
+	GuestbookRules,
+} from "@components/features/guestbook";
+import { PageHeader } from "@components/features/page-header";
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+
+import { guestbookConfig } from "../config";
+import I18nKey from "../i18n/i18nKey";
+import { i18n } from "../i18n/translation";
+
+export const prerender = true;
+
+// 未开启时直接 404，不生成页面
+if (!guestbookConfig.enable) {
+	return Astro.redirect("/404/");
+}
+
+const t = (key: I18nKey) => i18n(key);
+---
+
+<MainGridLayout
+	title={t(I18nKey.guestbook)}
+	description={t(I18nKey.guestbookSubtitle)}
+>
+	<script>
+		import("../scripts/right-sidebar-layout.js");
+		import { loadIconify } from "../utils/icon-loader";
+
+		loadIconify().catch((error) => {
+			console.error("Failed to load Iconify:", error);
+		});
+	</script>
+
+	<div class="flex w-full rounded-(--radius-large) overflow-hidden relative min-h-32">
+		<div class="card-base z-10 px-6 sm:px-9 py-6 relative w-full">
+			<PageHeader
+				title={t(I18nKey.guestbook)}
+				subtitle={t(I18nKey.guestbookSubtitle)}
+			/>
+
+			<!-- 1. 留言规则栏 -->
+			<GuestbookRules />
+
+			<!--
+				2. 留言输入区与列表
+				列表内容由下方脚本从 Supabase 拉取后渲染 —— 站点是静态的，
+				构建时没有数据可渲染。
+			-->
+			<div class="grid grid-cols-1 xl:grid-cols-5 gap-6 items-start">
+				<!-- 左：输入表单 -->
+				<div class="xl:col-span-2 xl:sticky xl:top-24">
+					<GuestbookForm />
+				</div>
+
+				<!-- 右：留言列表 -->
+				<div class="xl:col-span-3">
+					<div class="flex items-center justify-between mb-4">
+						<h2
+							class="flex items-center gap-2 text-lg font-bold text-black/90 dark:text-white/90"
+						>
+							<Icon name="material-symbols:forum-outline" class="text-(--primary)" />
+							{t(I18nKey.guestbookList)}
+							<span
+								id="guestbook-count"
+								class="text-sm font-normal text-black/45 dark:text-white/45"
+							></span>
+						</h2>
+					</div>
+
+					<!-- 加载中 -->
+					<div id="guestbook-loading" class="py-12 text-center">
+						<Icon
+							name="material-symbols:progress-activity"
+							class="text-4xl text-black/20 dark:text-white/20 animate-spin mb-3"
+						/>
+						<p class="text-black/50 dark:text-white/50">{t(I18nKey.guestbookLoading)}</p>
+					</div>
+
+					<!-- 空状态 -->
+					<div id="guestbook-empty" class="hidden py-12 text-center">
+						<Icon
+							name="material-symbols:chat-bubble-outline"
+							class="text-5xl text-black/15 dark:text-white/15 mb-3"
+						/>
+						<h3 class="text-base font-medium text-black/90 dark:text-white/90 mb-1">
+							{t(I18nKey.guestbookEmpty)}
+						</h3>
+						<p class="text-sm text-black/50 dark:text-white/50">
+							{t(I18nKey.guestbookEmptyDesc)}
+						</p>
+					</div>
+
+					<!-- 出错 -->
+					<div id="guestbook-error" class="hidden py-12 text-center">
+						<Icon
+							name="material-symbols:error-outline"
+							class="text-5xl text-black/15 dark:text-white/15 mb-3"
+						/>
+						<p id="guestbook-error-text" class="text-sm text-black/50 dark:text-white/50">
+							{t(I18nKey.guestbookLoadFailed)}
+						</p>
+					</div>
+
+					<!-- 留言卡片容器 -->
+					<div id="guestbook-list" class="space-y-4"></div>
+
+					<!-- 加载更多 -->
+					<div class="mt-6 text-center">
+						<button
+							type="button"
+							id="guestbook-load-more"
+							class="hidden btn-regular px-5 py-2 rounded-lg text-sm font-medium
+								bg-(--btn-regular-bg) border border-black/10 dark:border-white/10
+								hover:border-(--primary) hover:text-(--primary)
+								transition-all duration-200"
+							data-page-size={guestbookConfig.pageSize}
+						>
+							{t(I18nKey.guestbookLoadMore)}
+						</button>
+						<p
+							id="guestbook-no-more"
+							class="hidden text-xs text-black/35 dark:text-white/35"
+						>
+							{t(I18nKey.guestbookNoMore)}
+						</p>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!--
+		把运行期需要的配置和文案放在隐藏节点上，供客户端脚本读取。
+		这样配置值只在服务端渲染时用到，不会把整份 guestbookConfig 打进前端。
+	-->
+	<div
+		id="guestbook-runtime"
+		class="hidden"
+		aria-hidden="true"
+		data-page-size={String(guestbookConfig.pageSize)}
+		data-just-now={t(I18nKey.guestbookJustNow)}
+		data-not-configured={t(I18nKey.guestbookNotConfigured)}
+	></div>
+</MainGridLayout>
+
+<script>
+	import {
+		fetchMessages,
+		isGuestbookConfigured,
+		submitMessage,
+		uploadGuestbookImage,
+	} from "@components/features/guestbook/client";
+	import type { GuestbookMessage } from "@components/features/guestbook/types";
+
+	// ── 读取页面上的元素 ────────────────────────────────────────
+	const form = document.getElementById("guestbook-form") as HTMLFormElement | null;
+	const nameInput = document.getElementById("guestbook-name") as HTMLInputElement | null;
+	const contentInput = document.getElementById(
+		"guestbook-content",
+	) as HTMLTextAreaElement | null;
+	const contentCount = document.getElementById("guestbook-content-count");
+	const honeyInput = document.getElementById("guestbook-website") as HTMLInputElement | null;
+	const imageInput = document.getElementById("guestbook-image") as HTMLInputElement | null;
+	const imagePreview = document.getElementById("guestbook-image-preview");
+	const imagePreviewImg = document.getElementById(
+		"guestbook-image-preview-img",
+	) as HTMLImageElement | null;
+	const imageRemove = document.getElementById("guestbook-image-remove");
+	const submitBtn = document.getElementById("guestbook-submit") as HTMLButtonElement | null;
+	const submitText = document.getElementById("guestbook-submit-text");
+	const statusBox = document.getElementById("guestbook-status");
+	const listBox = document.getElementById("guestbook-list");
+	const loadingBox = document.getElementById("guestbook-loading");
+	const emptyBox = document.getElementById("guestbook-empty");
+	const errorBox = document.getElementById("guestbook-error");
+	const errorText = document.getElementById("guestbook-error-text");
+	const countLabel = document.getElementById("guestbook-count");
+	const loadMoreBtn = document.getElementById("guestbook-load-more");
+	const noMoreLabel = document.getElementById("guestbook-no-more");
+	const captchaBox = document.getElementById("guestbook-captcha");
+	const runtimeEl = document.getElementById("guestbook-runtime");
+
+	if (!form || !nameInput || !contentInput || !listBox) {
+		// 不在留言板页面上，直接退出
+	} else {
+		const pageSize = Number(runtimeEl?.dataset.pageSize || 20);
+		const justNowLabel = runtimeEl?.dataset.justNow || "just now";
+		const notConfiguredLabel = runtimeEl?.dataset.notConfigured || "留言板未配置";
+
+		const captchaEnabled = form.dataset.captchaEnabled === "true";
+		const captchaSiteKey = form.dataset.captchaSitekey || "";
+
+		let selectedImage: File | null = null;
+		let loadedCount = 0;
+		let allLoaded = false;
+		let captchaToken: string | null = null;
+
+		// ── 工具函数 ─────────────────────────────────────────────
+		function showStatus(kind: "success" | "error", text: string) {
+			if (!statusBox) return;
+			statusBox.textContent = text;
+			statusBox.className =
+				kind === "success"
+					? "mb-4 px-4 py-3 rounded-lg text-sm bg-(--primary)/12 text-(--primary)"
+					: "mb-4 px-4 py-3 rounded-lg text-sm bg-red-500/12 text-red-500";
+			statusBox.classList.remove("hidden");
+		}
+
+		function hideStatus() {
+			statusBox?.classList.add("hidden");
+		}
+
+		/** 留言时间显示成「x 分钟前」这种相对格式，超过一周显示日期 */
+		function formatTime(iso: string, justNowLabel: string): string {
+			const then = new Date(iso).getTime();
+			if (Number.isNaN(then)) return iso;
+			const diffSec = Math.floor((Date.now() - then) / 1000);
+
+			if (diffSec < 60) return justNowLabel;
+			if (diffSec < 3600) return `${Math.floor(diffSec / 60)} min`;
+			if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} h`;
+			if (diffSec < 604800) return `${Math.floor(diffSec / 86400)} d`;
+			return new Date(iso).toLocaleDateString();
+		}
+
+		/** 按主题现有的卡片样式生成一条留言 */
+		function renderMessage(msg: GuestbookMessage, justNowLabel: string): string {
+			const initial = (msg.name.trim().charAt(0) || "?").toUpperCase();
+			const image = msg.image_url
+				? `<div class="mt-3"><a href="${escapeAttr(msg.image_url)}" data-fancybox="guestbook-${msg.id}" class="block max-w-xs rounded-lg overflow-hidden border border-black/5 dark:border-white/10"><img src="${escapeAttr(msg.image_url)}" alt="" class="w-full h-auto object-cover transition-transform duration-300 hover:scale-105" loading="lazy" decoding="async" /></a></div>`
+				: "";
+
+			return `<article class="guestbook-card group relative bg-transparent rounded-xl border border-black/10 dark:border-white/10 overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1" data-message-id="${msg.id}">
+	<div class="p-5">
+		<div class="flex items-center gap-3 mb-3">
+			<div class="w-10 h-10 shrink-0 rounded-lg flex items-center justify-center bg-(--primary)/12 text-(--primary) font-bold select-none" aria-hidden="true">${escapeHtml(initial)}</div>
+			<div class="min-w-0 flex-1">
+				<div class="font-semibold text-black/90 dark:text-white/90 truncate group-hover:text-(--primary) transition-colors duration-200">${escapeHtml(msg.name)}</div>
+				<div class="flex items-center gap-1 text-xs text-black/45 dark:text-white/45">
+					<span>${escapeHtml(formatTime(msg.created_at, justNowLabel))}</span>
+				</div>
+			</div>
+			<span class="shrink-0 text-xs text-black/25 dark:text-white/25 tabular-nums" aria-hidden="true">#${msg.id}</span>
+		</div>
+		<p class="text-sm md:text-base text-black/85 dark:text-white/85 leading-relaxed whitespace-pre-wrap break-words">${escapeHtml(msg.content)}</p>
+		${image}
+	</div>
+	<div class="absolute inset-0 bg-linear-to-br from-(--primary)/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-xl"></div>
+</article>`;
+		}
+
+		// 留言内容来自访客输入，必须转义后再插进 innerHTML
+		function escapeHtml(value: string): string {
+			return value
+				.replaceAll("&", "&amp;")
+				.replaceAll("<", "&lt;")
+				.replaceAll(">", "&gt;")
+				.replaceAll('"', "&quot;")
+				.replaceAll("'", "&#39;");
+		}
+
+		function escapeAttr(value: string): string {
+			return escapeHtml(value);
+		}
+
+		// ── 加载列表 ─────────────────────────────────────────────
+		async function loadMessages(reset = false) {
+			if (reset) {
+				loadedCount = 0;
+				allLoaded = false;
+				listBox!.innerHTML = "";
+			}
+
+			loadingBox?.classList.remove("hidden");
+			errorBox?.classList.add("hidden");
+			emptyBox?.classList.add("hidden");
+
+			try {
+				const messages = await fetchMessages(loadedCount, pageSize);
+				loadingBox?.classList.add("hidden");
+
+				if (messages.length === 0 && loadedCount === 0) {
+					emptyBox?.classList.remove("hidden");
+					loadMoreBtn?.classList.add("hidden");
+					if (countLabel) countLabel.textContent = "";
+					return;
+				}
+
+				listBox!.insertAdjacentHTML(
+					"beforeend",
+					messages.map((m) => renderMessage(m, justNowLabel)).join(""),
+				);
+
+				loadedCount += messages.length;
+				if (messages.length < pageSize) allLoaded = true;
+
+				if (countLabel) countLabel.textContent = `· ${loadedCount}`;
+				loadMoreBtn?.classList.toggle("hidden", allLoaded);
+				noMoreLabel?.classList.toggle("hidden", !allLoaded);
+			} catch (error) {
+				console.error("[guestbook] 加载留言失败:", error);
+				loadingBox?.classList.add("hidden");
+				errorBox?.classList.remove("hidden");
+				if (errorText) {
+					errorText.textContent =
+						error instanceof Error ? error.message : String(error);
+				}
+			}
+		}
+
+		// ── 图片选择 ─────────────────────────────────────────────
+		imageInput?.addEventListener("change", () => {
+			const file = imageInput.files?.[0];
+			if (!file) return;
+
+			const maxMb = Number(form.dataset.imageMaxMb || 2);
+			const allowed = form.dataset.imageAllowedTypes || "";
+			void allowed;
+
+			if (file.size > maxMb * 1024 * 1024) {
+				showStatus("error", form.dataset.msgImageTooLarge || "image too large");
+				imageInput.value = "";
+				return;
+			}
+
+			selectedImage = file;
+			if (imagePreviewImg) imagePreviewImg.src = URL.createObjectURL(file);
+			imagePreview?.classList.remove("hidden");
+			hideStatus();
+		});
+
+		imageRemove?.addEventListener("click", () => {
+			selectedImage = null;
+			if (imageInput) imageInput.value = "";
+			if (imagePreviewImg) imagePreviewImg.src = "";
+			imagePreview?.classList.add("hidden");
+		});
+
+		// 字数统计
+		contentInput.addEventListener("input", () => {
+			if (contentCount) {
+				contentCount.textContent = String(contentInput.value.length);
+			}
+		});
+
+		// ── 加载更多 ─────────────────────────────────────────────
+		loadMoreBtn?.addEventListener("click", () => {
+			void loadMessages(false);
+		});
+
+		// ── 提交 ─────────────────────────────────────────────────
+		form.addEventListener("submit", async (event) => {
+			event.preventDefault();
+			hideStatus();
+
+			const name = nameInput.value.trim();
+			const content = contentInput.value.trim();
+
+			if (!name) return showStatus("error", form.dataset.msgNameRequired || "name required");
+			if (!content)
+				return showStatus("error", form.dataset.msgMessageRequired || "message required");
+
+			// 蜜罐被填了，判定为机器人：假装成功，不写库
+			if (honeyInput?.value) {
+				showStatus("success", form.dataset.msgSubmitted || "ok");
+				form.reset();
+				return;
+			}
+
+			if (captchaEnabled && !captchaToken) {
+				return showStatus("error", form.dataset.msgCaptchaRequired || "captcha required");
+			}
+
+			if (submitBtn) submitBtn.disabled = true;
+			const originalText = submitText?.textContent || "";
+			if (submitText) submitText.textContent = form.dataset.msgSubmitting || "sending…";
+
+			try {
+				let imageUrl: string | null = null;
+				if (selectedImage) {
+					imageUrl = await uploadGuestbookImage(selectedImage);
+				}
+
+				await submitMessage({
+					name,
+					content,
+					image_url: imageUrl,
+					captchaToken,
+				});
+
+				showStatus("success", form.dataset.msgSubmitted || "ok");
+				form.reset();
+				selectedImage = null;
+				imagePreview?.classList.add("hidden");
+				if (imagePreviewImg) imagePreviewImg.src = "";
+				if (contentCount) contentCount.textContent = "0";
+
+				// 重新拉一次，让新留言立刻出现在最上面
+				await loadMessages(true);
+
+				// hCaptcha 的 token 是一次性的，用过就要拿新的
+				if (captchaEnabled) resetCaptcha();
+			} catch (error) {
+				console.error("[guestbook] 提交失败:", error);
+				showStatus(
+					"error",
+					error instanceof Error && error.message
+						? error.message
+						: form.dataset.msgFailed || "failed",
+				);
+			} finally {
+				if (submitBtn) submitBtn.disabled = false;
+				if (submitText) submitText.textContent = originalText;
+			}
+		});
+
+		// ── hCaptcha ────────────────────────────────────────────
+		function resetCaptcha() {
+			captchaToken = null;
+			const widget = window.hcaptcha;
+			if (widget && captchaBox?.firstChild) {
+				try {
+					widget.reset();
+				} catch {
+					// 忽略：widget 可能还没渲染完
+				}
+			}
+		}
+
+		function setupCaptcha() {
+			if (!captchaEnabled || !captchaSiteKey || !captchaBox) return;
+
+			const script = document.createElement("script");
+			script.src = "https://js.hcaptcha.com/1/api.js";
+			script.async = true;
+			script.defer = true;
+			script.onload = () => {
+				window.hcaptcha?.render(captchaBox, {
+					sitekey: captchaSiteKey,
+					theme: document.documentElement.classList.contains("dark")
+						? "dark"
+						: "light",
+					callback: (token: string) => {
+						captchaToken = token;
+					},
+					"expired-callback": () => {
+						captchaToken = null;
+					},
+				});
+			};
+			document.head.appendChild(script);
+		}
+
+		// ── 启动 ─────────────────────────────────────────────────
+		if (!isGuestbookConfigured()) {
+			// 没配 Supabase 就明确告诉访客，而不是静默失败
+			loadingBox?.classList.add("hidden");
+			errorBox?.classList.remove("hidden");
+			if (errorText) errorText.textContent = notConfiguredLabel;
+			if (submitBtn) submitBtn.disabled = true;
+		} else {
+			setupCaptcha();
+			void loadMessages(true);
+		}
+	}
+</script>

@@ -66,6 +66,7 @@ import { fullscreenWallpaperConfig as fullscreenWallpaperDefaults } from "./back
 import { sakuraConfig as sakuraDefaults } from "./effectsConfig";
 import { expressiveCodeConfig as expressiveCodeDefaults } from "./expressiveCodeConfig";
 import { footerConfig as footerDefaults } from "./footerConfig";
+import { guestbookConfig as guestbookDefaults } from "./guestbookConfig";
 import { licenseConfig as licenseDefaults } from "./licenseConfig";
 import { markdownConfig as markdownDefaults } from "./markdownConfig";
 import { musicPlayerConfig as musicPlayerDefaults } from "./musicConfig";
@@ -101,6 +102,12 @@ export const expressiveCodeConfig = withOverride(
 );
 
 export const footerConfig = withOverride("footerConfig", footerDefaults);
+
+// ─── 留言板 ─────────────────────────────────────────────────
+export const guestbookConfig = withOverride(
+	"guestbookConfig",
+	guestbookDefaults,
+);
 
 // ─── 内容与版权 ─────────────────────────────────────────────
 export const licenseConfig = withOverride("licenseConfig", licenseDefaults);

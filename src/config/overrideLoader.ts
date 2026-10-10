@@ -16,6 +16,7 @@ const OVERRIDABLE_CONFIGS = [
 	"expressiveCodeConfig",
 	"footerConfig",
 	"fullscreenWallpaperConfig",
+	"guestbookConfig",
 	"licenseConfig",
 	"markdownConfig",
 	"musicPlayerConfig",
