@@ -192,10 +192,19 @@ const {
 		root.style.removeProperty("--card-transparent-opacity");
 	}
 
+	// 解析当前生效的壁纸模式。
+	// 注意：站点配置成 "none" 时视为硬开关，不再读取 localStorage。
+	// 否则访客浏览器里遗留的旧值（之前点过设置面板切到 banner/fullscreen）
+	// 会永久覆盖配置，表现为「站长已经关掉横幅，某些设备上却还在显示」。
+	function resolveWallpaperMode() {
+		if (defaultWallpaperMode === "none") return "none";
+		if (!wallpaperEnabled) return defaultWallpaperMode;
+		return localStorage.getItem("wallpaperMode") || defaultWallpaperMode;
+	}
+
 	// 立即执行，在页面渲染前应用壁纸模式和布局模式，避免闪烁
 	(function () {
-		const wallpaperMode =
-			wallpaperEnabled ? (localStorage.getItem("wallpaperMode") || defaultWallpaperMode) : defaultWallpaperMode;
+		const wallpaperMode = resolveWallpaperMode();
 		const body = document.body;
 		applyWallpaperVisualSettings(wallpaperMode);
 
@@ -292,8 +301,7 @@ const {
 
 	// 根据壁纸模式动态设置 banner 和全屏壁纸的显示
 	function applyWallpaperMode() {
-		const wallpaperMode =
-			wallpaperEnabled ? (localStorage.getItem("wallpaperMode") || defaultWallpaperMode) : defaultWallpaperMode;
+		const wallpaperMode = resolveWallpaperMode();
 
 		// 同步波浪状态：配置 enable 优先，其次 localStorage
 		if (!wavesEnabled) {

@@ -121,12 +121,12 @@ export function getStoredTheme(): LIGHT_DARK_MODE {
 }
 
 export function getStoredWallpaperMode(): WALLPAPER_MODE {
-	if (!fullscreenWallpaperConfig.enable)
-		return siteConfig.wallpaperMode.defaultMode as WALLPAPER_MODE;
-	return (
-		(localStorage.getItem("wallpaperMode") as WALLPAPER_MODE) ||
-		siteConfig.wallpaperMode.defaultMode
-	);
+	const defaultMode = siteConfig.wallpaperMode.defaultMode as WALLPAPER_MODE;
+	// 站点配置成 none 时是硬开关：忽略 localStorage 里遗留的旧值，
+	// 否则设置面板的选中状态会和页面上实际生效的模式对不上。
+	if (defaultMode === "none") return defaultMode;
+	if (!fullscreenWallpaperConfig.enable) return defaultMode;
+	return (localStorage.getItem("wallpaperMode") as WALLPAPER_MODE) || defaultMode;
 }
 
 export function setWallpaperMode(mode: WALLPAPER_MODE): void {

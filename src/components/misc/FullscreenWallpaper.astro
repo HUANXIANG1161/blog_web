@@ -118,10 +118,13 @@ const renderGroups = [
 		const el = document.currentScript.parentElement;
 		const wallpaperEnabledVal = wallpaperEnabled;
 		// 关键：localStorage 没有值时用站点配置的默认模式，而不是硬编码 'banner'。
-		// 否则默认模式是 none 的站点，首次访问会先按 overlay 渲染出背景图（闪一下）。
-		const mode = wallpaperEnabledVal
-			? (localStorage.getItem('wallpaperMode') || defaultWallpaperMode)
-			: defaultWallpaperMode;
+		// 站点配置成 none 时视为硬开关，不读 localStorage —— 否则访客浏览器里
+		// 遗留的旧值（之前切到过 overlay）会让这层壁纸重新出现，覆盖站长的配置。
+		const mode = defaultWallpaperMode === 'none'
+			? 'none'
+			: (wallpaperEnabledVal
+				? (localStorage.getItem('wallpaperMode') || defaultWallpaperMode)
+				: defaultWallpaperMode);
 
 		if (mode === 'overlay') {
 			// 只有 overlay 模式才需要这层壁纸。去掉初始的 display:none，
