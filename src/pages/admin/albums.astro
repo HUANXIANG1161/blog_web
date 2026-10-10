@@ -717,7 +717,11 @@ const t = (key: I18nKey) => i18n(key);
 					try {
 						await loadAlbums();
 					} catch (error) {
-						showStatus("error", error instanceof Error ? error.message : String(error));
+						console.error("[albums-admin] 加载相册列表失败:", error);
+						showStatus(
+							"error",
+							`加载相册列表失败：${error instanceof Error ? error.message : String(error)}`,
+						);
 					}
 				})();
 			}
@@ -771,6 +775,32 @@ const t = (key: I18nKey) => i18n(key);
 				showSignIn();
 			});
 
+			// ── 诊断钩子 ────────────────────────────────────────
+			// 出问题时在控制台跑 __albumsDebug() 就能看到每一步的结果。
+			// 只暴露只读的排查函数，不改变任何数据。
+			(window as unknown as Record<string, unknown>).__albumsDebug = async () => {
+				const out: Record<string, unknown> = {};
+				try {
+					out.configured = isAlbumsSupabaseConfigured();
+					out.user = (await adminGetUser())?.email ?? null;
+					out.currentAlbumId = currentAlbumId;
+					out.albumsInMemory = albums.length;
+
+					const list = await fetchAlbums(0, 200);
+					out.fetchAlbumsCount = list.length;
+					out.fetchAlbumsTitles = list.map((a) => a.title);
+
+					out.pickerOptions = albumPicker
+						? Array.from(albumPicker.options).map((o) => `${o.value}:${o.text}`)
+						: null;
+				} catch (error) {
+					out.error = error instanceof Error ? error.message : String(error);
+					out.errorRaw = String(error);
+				}
+				console.log("[albums debug]", out);
+				return out;
+			};
+
 			// ── 启动 ────────────────────────────────────────────
 			(async () => {
 				if (!isAlbumsSupabaseConfigured()) {
@@ -778,12 +808,19 @@ const t = (key: I18nKey) => i18n(key);
 					signInPanel?.classList.add("hidden");
 					return;
 				}
-				const user = await adminGetUser();
-				if (user) {
-					showEditor(user.email);
-				} else {
+				try {
+					const user = await adminGetUser();
+					if (user) {
+						showEditor(user.email);
+					} else {
+						showSignIn();
+						setupTurnstile();
+					}
+				} catch (error) {
+					// 以前这里是静默失败，页面会停在半加载状态且没有任何提示
+					console.error("[albums-admin] 启动失败:", error);
 					showSignIn();
-					setupTurnstile();
+					showStatus("error", error instanceof Error ? error.message : String(error));
 				}
 			})();
 		</script>
