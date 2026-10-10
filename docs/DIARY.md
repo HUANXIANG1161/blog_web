@@ -188,6 +188,50 @@ PUBLIC_TURNSTILE_SITE_KEY=你的Turnstile SiteKey
 > 不够 —— 前端还需要 Site Key 才能渲染出验证框、
 > 拿到 token 交给 Supabase 校验。两个都要填，而且是两个不同的值。
 
+### ⚠️ 本地开发：验证框显示「无法连接到网站」
+
+Cloudflare **默认不允许生产 Site Key 在 `localhost` 上使用**
+（官方建议生产 sitekey 不要放行本地域名）。症状是验证框渲染出来了，
+但显示「无法连接到网站」「故障排除」，登录时 Supabase 返回 `captcha_failed`。
+
+两种解法，选一种：
+
+**解法 A：本地改用官方测试密钥（推荐，最快）**
+
+Cloudflare 的测试密钥在任意域名都能用，包括 localhost：
+
+| 位置 | 填什么 |
+| --- | --- |
+| `.env` 的 `PUBLIC_TURNSTILE_SITE_KEY` | `1x00000000000000000000AA` |
+| Supabase 的 CAPTCHA Secret | `1x0000000000000000000000000000000AA` |
+
+这个组合会永远通过，本地调试不用反复点验证。
+
+> 其他测试密钥：`2x00000000000000000000AB` 总是失败（用来测错误提示）；
+> `1x00000000000000000000BB` 是无感验证版本。见
+> https://developers.cloudflare.com/turnstile/troubleshooting/testing/
+
+**解法 B：把 localhost 加进 widget 的域名列表**
+
+Cloudflare 控制台 → Turnstile → 你的 widget → **Hostname Management**
+→ 添加 `localhost`（保留已有的真实域名）。这样可以用真实密钥，
+但官方不推荐给生产 widget 放行本地域名。
+
+### ❗ 换密钥必须成对换
+
+这是最容易翻车的地方：
+
+| 环境 | Site Key（`.env`） | Secret Key（Supabase） |
+| --- | --- | --- |
+| 本地开发 | `1x00000000000000000000AA` | `1x0000000000000000000000000000000AA` |
+| 线上部署 | 你的真实 Site Key | 你的真实 Secret Key |
+
+**生产 Secret Key 会拒绝测试 token**（官方原话：*Production secret keys
+will reject the dummy token*）。如果本地用测试 Site Key、Supabase 却填着
+生产 Secret，会报 `invalid-input-response`。
+
+**部署上线前记得把 Supabase 里的 Secret 换成真实的**，否则线上登录会失败。
+
 ---
 
 ## 第 6 步：开始写日记
