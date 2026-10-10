@@ -331,6 +331,15 @@ export default defineConfig({
 		},
 		// 预热常用入口文件，让 Vite 在服务器启动后立即开始转换，而不是等到浏览器请求
 		server: {
+			// 忽略编辑器原子写入时产生的 *.tmpdir 临时目录。
+			//
+			// 起因：有些编辑器保存文件时先写临时文件再改名。Vite 的文件监听器
+			// 会去 watch 这些临时文件，而此刻它们正被写入锁住，Windows 上会抛
+			// EBUSY；该异常没有被捕获，会把整个 dev server 带崩。临时目录本身
+			// 会自动清理，不需要监听，排除掉即可。
+			watch: {
+				ignored: ["**/.*.tmpdir/**", "**/*.tmpdir/**"],
+			},
 			warmup: {
 				clientFiles: [
 					"src/layouts/Layout.astro",
