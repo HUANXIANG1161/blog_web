@@ -1,0 +1,594 @@
+---
+import { Icon } from "astro-icon/components";
+
+import { diarySupabaseConfig, siteConfig } from "@/config";
+import I18nKey from "@/i18n/i18nKey";
+import { i18n } from "@/i18n/translation";
+// 复用主站的样式与设计变量，保证和管理页之外的页面观感一致
+import "../../styles/variables.styl";
+import "../../styles/main.css";
+
+export const prerender = true;
+
+// 没开启 Supabase 日记时，这个页面没有意义
+if (!diarySupabaseConfig.enable) {
+	return Astro.redirect("/404/");
+}
+
+const t = (key: I18nKey) => i18n(key);
+---
+
+<!doctype html>
+<html lang={siteConfig.lang.replace("_", "-")}>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="robots" content="noindex, nofollow" />
+		<title>{t(I18nKey.diaryAdmin)} · {siteConfig.title}</title>
+		<link rel="icon" href="/favicon/favicon.ico" sizes="64x64" />
+		<script is:inline>
+			// 与主站一致：首帧前定好主题，避免闪白
+			(function () {
+				try {
+					var theme = localStorage.getItem("theme") || "light";
+					if (theme === "dark") document.documentElement.classList.add("dark");
+					var hue = localStorage.getItem("hue") || "250";
+					document.documentElement.style.setProperty("--hue", hue);
+				} catch (e) {}
+			})();
+		</script>
+		<style is:global>
+			/* 页面级微调。全局样式已在 frontmatter 里导入 */
+			body {
+				background: var(--page-bg);
+			}
+		</style>
+	</head>
+
+	<body class="min-h-screen bg-(--page-bg) text-black/90 dark:text-white/90">
+		<div class="max-w-3xl mx-auto px-4 py-8 sm:py-12">
+			<!-- 顶部：标题 + 登录态 -->
+			<header class="flex items-center justify-between gap-4 mb-8">
+				<div>
+					<h1 class="text-2xl font-bold flex items-center gap-2">
+						<Icon name="material-symbols:edit-note" class="text-(--primary)" />
+						{t(I18nKey.diaryAdmin)}
+					</h1>
+					<p id="admin-user" class="text-sm text-black/50 dark:text-white/50 mt-1"></p>
+				</div>
+				<div class="flex items-center gap-2">
+					<a
+						href="/diary/"
+						class="text-sm px-3 py-2 rounded-lg text-black/60 dark:text-white/60 hover:text-(--primary) transition-colors"
+					>
+						← 日记页
+					</a>
+					<button
+						type="button"
+						id="sign-out-btn"
+						class="hidden text-sm px-3 py-2 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 hover:border-(--primary) hover:text-(--primary) transition-all"
+					>
+						{t(I18nKey.diaryAdminSignOut)}
+					</button>
+				</div>
+			</header>
+
+			<!-- 提示条 -->
+			<div
+				id="admin-status"
+				class="hidden mb-6 px-4 py-3 rounded-lg text-sm"
+				role="status"
+				aria-live="polite"
+			>
+			</div>
+
+			<!-- ── 登录表单 ────────────────────────────────── -->
+			<section id="sign-in-panel" class="card-base p-6 sm:p-8 max-w-md mx-auto">
+				<h2 class="text-lg font-bold mb-1">{t(I18nKey.diaryAdminSignIn)}</h2>
+				<p class="text-sm text-black/50 dark:text-white/50 mb-6">
+					只有站长账号可以登录
+				</p>
+				<form id="sign-in-form" class="space-y-4">
+					<div>
+						<label
+							for="sign-in-email"
+							class="block text-sm font-medium text-black/70 dark:text-white/70 mb-1.5"
+							>{t(I18nKey.diaryAdminEmail)}</label
+						>
+						<input
+							type="email"
+							id="sign-in-email"
+							autocomplete="username"
+							required
+							class="w-full px-4 py-2.5 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-(--primary)/50 transition-all"
+						/>
+					</div>
+					<div>
+						<label
+							for="sign-in-password"
+							class="block text-sm font-medium text-black/70 dark:text-white/70 mb-1.5"
+							>{t(I18nKey.diaryAdminPassword)}</label
+						>
+						<input
+							type="password"
+							id="sign-in-password"
+							autocomplete="current-password"
+							required
+							class="w-full px-4 py-2.5 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-(--primary)/50 transition-all"
+						/>
+					</div>
+					<button
+						type="submit"
+						id="sign-in-submit"
+						class="w-full px-6 py-2.5 rounded-lg font-medium bg-(--primary) text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+					>
+						{t(I18nKey.diaryAdminSignInButton)}
+					</button>
+				</form>
+			</section>
+
+			<!-- ── 编辑器 ──────────────────────────────────── -->
+			<section id="editor-panel" class="hidden space-y-6">
+				<form id="entry-form" class="card-base p-6 sm:p-8">
+					<h2 id="form-title" class="text-lg font-bold mb-5">
+						{t(I18nKey.diaryAdminNewEntry)}
+					</h2>
+
+					<!-- 正文 -->
+					<div class="mb-4">
+						<label
+							for="entry-content"
+							class="block text-sm font-medium text-black/70 dark:text-white/70 mb-2"
+							>{t(I18nKey.diaryAdminContent)} <span class="text-(--primary)">*</span></label
+						>
+						<textarea
+							id="entry-content"
+							rows="6"
+							maxlength={diarySupabaseConfig.contentMaxLength}
+							placeholder={t(I18nKey.diaryAdminContentPlaceholder)}
+							class="w-full px-4 py-2.5 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 resize-y focus:outline-none focus:ring-2 focus:ring-(--primary)/50 transition-all"
+						></textarea>
+						<div class="mt-1.5 text-xs text-black/40 dark:text-white/40 text-right">
+							<span id="entry-content-count">0</span>/{diarySupabaseConfig.contentMaxLength}
+						</div>
+					</div>
+
+					<!-- 标签 -->
+					<div class="mb-4">
+						<label
+							for="entry-tags"
+							class="block text-sm font-medium text-black/70 dark:text-white/70 mb-2"
+							>{t(I18nKey.diaryAdminTags)}</label
+						>
+						<input
+							type="text"
+							id="entry-tags"
+							placeholder={t(I18nKey.diaryAdminTagsHint)}
+							class="w-full px-4 py-2.5 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-(--primary)/50 transition-all"
+						/>
+						<p class="mt-1.5 text-xs text-black/40 dark:text-white/40">
+							{t(I18nKey.diaryAdminTagsHint)}
+						</p>
+					</div>
+
+					<!-- 图片 -->
+					<div class="mb-6">
+						<span class="block text-sm font-medium text-black/70 dark:text-white/70 mb-2"
+							>{t(I18nKey.diaryAdminImages)}</span
+						>
+						<label
+							for="entry-images"
+							class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg cursor-pointer text-sm font-medium bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 hover:border-(--primary) hover:text-(--primary) transition-all"
+						>
+							<Icon name="material-symbols:add-photo-alternate-outline" />
+							{t(I18nKey.diaryAdminAddImage)}
+						</label>
+						<input
+							type="file"
+							id="entry-images"
+							accept={diarySupabaseConfig.imageAllowedTypes.join(",")}
+							multiple
+							class="hidden"
+						/>
+						<span class="ml-2 text-xs text-black/40 dark:text-white/40">
+							最多 {diarySupabaseConfig.maxImagesPerEntry} 张
+						</span>
+						<div id="image-list" class="flex flex-wrap gap-3 mt-3"></div>
+					</div>
+
+					<!-- 操作 -->
+					<div class="flex flex-wrap items-center gap-3">
+						<button
+							type="submit"
+							id="entry-submit"
+							class="px-6 py-2.5 rounded-lg font-medium bg-(--primary) text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+						>
+							{t(I18nKey.diaryAdminPublish)}
+						</button>
+						<button
+							type="button"
+							id="entry-cancel"
+							class="hidden px-5 py-2.5 rounded-lg text-sm bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 hover:border-(--primary) hover:text-(--primary) transition-all"
+						>
+							取消编辑
+						</button>
+						<span class="text-xs text-black/40 dark:text-white/40">
+							{t(I18nKey.diaryAdminReloadHint)}
+						</span>
+					</div>
+				</form>
+
+				<!-- 已有日记 -->
+				<div class="card-base p-6 sm:p-8">
+					<h2 class="text-lg font-bold mb-5">{t(I18nKey.diaryAdminExisting)}</h2>
+					<div id="entry-list" class="space-y-3"></div>
+					<p id="entry-list-loading" class="text-sm text-black/50 dark:text-white/50 py-4">
+						{t(I18nKey.diaryAdminLoading)}
+					</p>
+					<p id="entry-list-empty" class="hidden text-sm text-black/50 dark:text-white/50 py-4">
+						{t(I18nKey.diaryAdminNoEntries)}
+					</p>
+				</div>
+			</section>
+		</div>
+
+		<!-- 交给客户端脚本的配置与文案 -->
+		<div
+			id="admin-runtime"
+			class="hidden"
+			aria-hidden="true"
+			data-max-images={String(diarySupabaseConfig.maxImagesPerEntry)}
+			data-image-max-mb={String(diarySupabaseConfig.imageMaxBytes / 1024 / 1024)}
+			data-msg-content-required={t(I18nKey.diaryAdminContentRequired)}
+			data-msg-publishing={t(I18nKey.diaryAdminPublishing)}
+			data-msg-published={t(I18nKey.diaryAdminPublished)}
+			data-msg-publish-failed={t(I18nKey.diaryAdminPublishFailed)}
+			data-msg-saving={t(I18nKey.diaryAdminSaving)}
+			data-msg-saved={t(I18nKey.diaryAdminSaved)}
+			data-msg-deleted={t(I18nKey.diaryAdminDeleted)}
+			data-msg-delete-confirm={t(I18nKey.diaryAdminDeleteConfirm)}
+			data-msg-sign-in-failed={t(I18nKey.diaryAdminSignInFailed)}
+			data-msg-signing-in={t(I18nKey.diaryAdminSigningIn)}
+			data-msg-image-too-large={t(I18nKey.guestbookImageTooLarge)}
+			data-msg-image-bad-type={t(I18nKey.guestbookImageBadType)}
+			data-msg-not-configured={t(I18nKey.guestbookNotConfigured)}
+			data-msg-too-many-images="图片数量已达上限"
+			data-label-publish={t(I18nKey.diaryAdminPublish)}
+			data-label-save={t(I18nKey.diaryAdminSave)}
+			data-label-edit={t(I18nKey.diaryAdminEditEntry)}
+			data-label-new={t(I18nKey.diaryAdminNewEntry)}
+			data-label-delete={t(I18nKey.diaryAdminDelete)}
+			data-label-signout={t(I18nKey.diaryAdminSignOut)}
+		></div>
+
+		<script>
+			import {
+				createEntry,
+				deleteEntry,
+				fetchAllEntries,
+				getCurrentUser,
+				isDiarySupabaseConfigured,
+				signIn,
+				signOut,
+				updateEntry,
+				uploadDiaryImage,
+			} from "@components/features/diary-supabase/client";
+			import type { DiaryEntry } from "@components/features/diary-supabase/types";
+
+			const rt = document.getElementById("admin-runtime")?.dataset ?? ({} as DOMStringMap);
+			const msg = (key: string, fallback = "") => rt[key as keyof DOMStringMap] || fallback;
+
+			const signInPanel = document.getElementById("sign-in-panel");
+			const editorPanel = document.getElementById("editor-panel");
+			const signInForm = document.getElementById("sign-in-form") as HTMLFormElement | null;
+			const signInEmail = document.getElementById("sign-in-email") as HTMLInputElement | null;
+			const signInPassword = document.getElementById(
+				"sign-in-password",
+			) as HTMLInputElement | null;
+			const signInSubmit = document.getElementById("sign-in-submit") as HTMLButtonElement | null;
+			const signOutBtn = document.getElementById("sign-out-btn") as HTMLButtonElement | null;
+			const adminUser = document.getElementById("admin-user");
+			const statusBox = document.getElementById("admin-status");
+
+			const entryForm = document.getElementById("entry-form") as HTMLFormElement | null;
+			const formTitle = document.getElementById("form-title");
+			const contentInput = document.getElementById("entry-content") as HTMLTextAreaElement | null;
+			const contentCount = document.getElementById("entry-content-count");
+			const tagsInput = document.getElementById("entry-tags") as HTMLInputElement | null;
+			const imagesInput = document.getElementById("entry-images") as HTMLInputElement | null;
+			const imageList = document.getElementById("image-list");
+			const submitBtn = document.getElementById("entry-submit") as HTMLButtonElement | null;
+			const cancelBtn = document.getElementById("entry-cancel");
+			const listBox = document.getElementById("entry-list");
+			const listLoading = document.getElementById("entry-list-loading");
+			const listEmpty = document.getElementById("entry-list-empty");
+
+			/** 正在编辑的条目 id，null 表示新建 */
+			let editingId: number | null = null;
+			/** 当前表单里的图片地址 */
+			let currentImages: string[] = [];
+
+			function showStatus(kind: "success" | "error", text: string) {
+				if (!statusBox) return;
+				statusBox.textContent = text;
+				statusBox.className =
+					kind === "success"
+						? "mb-6 px-4 py-3 rounded-lg text-sm bg-(--primary)/12 text-(--primary)"
+						: "mb-6 px-4 py-3 rounded-lg text-sm bg-red-500/12 text-red-500";
+				statusBox.classList.remove("hidden");
+			}
+
+			function escapeHtml(value: string): string {
+				return value
+					.replaceAll("&", "&amp;")
+					.replaceAll("<", "&lt;")
+					.replaceAll(">", "&gt;")
+					.replaceAll('"', "&quot;")
+					.replaceAll("'", "&#39;");
+			}
+
+			// ── 图片区 ───────────────────────────────────────────
+			function renderImages() {
+				if (!imageList) return;
+				imageList.innerHTML = currentImages
+					.map(
+						(url, index) =>
+							`<div class="relative">
+								<img src="${escapeHtml(url)}" alt="" class="h-24 w-24 object-cover rounded-lg border border-black/10 dark:border-white/10" />
+								<button type="button" data-remove-image="${index}" aria-label="移除图片"
+									class="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center bg-(--primary) text-white text-xs shadow-md hover:scale-110 transition-transform">×</button>
+							</div>`,
+					)
+					.join("");
+			}
+
+			imageList?.addEventListener("click", (event) => {
+				const target = event.target as HTMLElement;
+				const btn = target.closest("[data-remove-image]") as HTMLElement | null;
+				if (!btn) return;
+				const index = Number(btn.dataset.removeImage);
+				currentImages.splice(index, 1);
+				renderImages();
+			});
+
+			imagesInput?.addEventListener("change", async () => {
+				const files = Array.from(imagesInput.files ?? []);
+				imagesInput.value = "";
+				if (files.length === 0) return;
+
+				const maxImages = Number(rt.maxImages || 9);
+				for (const file of files) {
+					if (currentImages.length >= maxImages) {
+						showStatus("error", msg("msgTooManyImages", "too many images"));
+						break;
+					}
+					try {
+						const url = await uploadDiaryImage(file);
+						currentImages.push(url);
+						renderImages();
+					} catch (error) {
+						const code = error instanceof Error ? error.message : "";
+						showStatus(
+							"error",
+							code === "IMAGE_TOO_LARGE"
+								? msg("msgImageTooLarge", "image too large")
+								: code === "BAD_IMAGE_TYPE"
+									? msg("msgImageBadType", "bad image type")
+									: String(error),
+						);
+					}
+				}
+			});
+
+			// ── 表单状态 ─────────────────────────────────────────
+			function resetForm() {
+				editingId = null;
+				currentImages = [];
+				entryForm?.reset();
+				renderImages();
+				if (contentCount) contentCount.textContent = "0";
+				if (formTitle) formTitle.textContent = msg("labelNew", "new");
+				if (submitBtn) submitBtn.textContent = msg("labelPublish", "publish");
+				cancelBtn?.classList.add("hidden");
+			}
+
+			function startEdit(entry: DiaryEntry) {
+				editingId = entry.id;
+				currentImages = [...entry.images];
+				if (contentInput) contentInput.value = entry.content;
+				if (tagsInput) tagsInput.value = entry.tags.join(", ");
+				if (contentCount) contentCount.textContent = String(entry.content.length);
+				renderImages();
+				if (formTitle) formTitle.textContent = msg("labelEdit", "edit");
+				if (submitBtn) submitBtn.textContent = msg("labelSave", "save");
+				cancelBtn?.classList.remove("hidden");
+				entryForm?.scrollIntoView({ behavior: "smooth", block: "start" });
+			}
+
+			cancelBtn?.addEventListener("click", () => {
+				resetForm();
+				showStatus("success", "");
+				statusBox?.classList.add("hidden");
+			});
+
+			contentInput?.addEventListener("input", () => {
+				if (contentCount) contentCount.textContent = String(contentInput.value.length);
+			});
+
+			// ── 列表 ─────────────────────────────────────────────
+			async function loadEntries() {
+				if (!listBox) return;
+				listLoading?.classList.remove("hidden");
+				listEmpty?.classList.add("hidden");
+
+				try {
+					const entries = await fetchAllEntries();
+					listLoading?.classList.add("hidden");
+
+					if (entries.length === 0) {
+						listEmpty?.classList.remove("hidden");
+						listBox.innerHTML = "";
+						return;
+					}
+
+					listBox.innerHTML = entries
+						.map(
+							(entry) => `<article class="rounded-xl border border-black/10 dark:border-white/10 p-4" data-entry-id="${entry.id}">
+								<div class="text-xs text-black/45 dark:text-white/45 mb-2">${escapeHtml(new Date(entry.created_at).toLocaleString())}</div>
+								<p class="text-sm whitespace-pre-wrap break-words mb-2">${escapeHtml(entry.content)}</p>
+								${entry.tags.length > 0 ? `<div class="flex flex-wrap gap-1.5 mb-2">${entry.tags.map((tg) => `<span class="btn-regular h-6 text-xs px-2 rounded-lg">${escapeHtml(tg)}</span>`).join("")}</div>` : ""}
+								${entry.images.length > 0 ? `<div class="flex flex-wrap gap-2 mb-3">${entry.images.map((url) => `<img src="${escapeHtml(url)}" alt="" class="h-16 w-16 object-cover rounded-lg border border-black/10 dark:border-white/10" />`).join("")}</div>` : ""}
+								<div class="flex gap-2">
+									<button type="button" data-action="edit" class="text-xs px-3 py-1.5 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 hover:border-(--primary) hover:text-(--primary) transition-all">${escapeHtml(msg("labelEdit", "edit"))}</button>
+									<button type="button" data-action="delete" class="text-xs px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all">${escapeHtml(msg("labelDelete", "delete"))}</button>
+								</div>
+							</article>`,
+						)
+						.join("");
+				} catch (error) {
+					listLoading?.classList.add("hidden");
+					showStatus("error", error instanceof Error ? error.message : String(error));
+				}
+			}
+
+			listBox?.addEventListener("click", async (event) => {
+				const target = event.target as HTMLElement;
+				const btn = target.closest("[data-action]") as HTMLElement | null;
+				if (!btn) return;
+
+				const article = btn.closest("[data-entry-id]") as HTMLElement | null;
+				const id = Number(article?.dataset.entryId);
+				if (!Number.isFinite(id)) return;
+
+				if (btn.dataset.action === "edit") {
+					try {
+						const entries = await fetchAllEntries();
+						const entry = entries.find((e) => e.id === id);
+						if (entry) startEdit(entry);
+					} catch (error) {
+						showStatus("error", error instanceof Error ? error.message : String(error));
+					}
+					return;
+				}
+
+				if (btn.dataset.action === "delete") {
+					if (!confirm(msg("msgDeleteConfirm", "delete?"))) return;
+					try {
+						await deleteEntry(id);
+						showStatus("success", msg("msgDeleted", "deleted"));
+						if (editingId === id) resetForm();
+						await loadEntries();
+					} catch (error) {
+						showStatus("error", error instanceof Error ? error.message : String(error));
+					}
+				}
+			});
+
+			// ── 提交 ─────────────────────────────────────────────
+			entryForm?.addEventListener("submit", async (event) => {
+				event.preventDefault();
+				const content = contentInput?.value.trim() ?? "";
+				if (!content) {
+					showStatus("error", msg("msgContentRequired", "content required"));
+					return;
+				}
+
+				const tags = (tagsInput?.value ?? "")
+					.split(/[,，]/)
+					.map((s) => s.trim())
+					.filter(Boolean);
+
+				const isEdit = editingId !== null;
+				if (submitBtn) submitBtn.disabled = true;
+				const original = submitBtn?.textContent ?? "";
+				if (submitBtn)
+					submitBtn.textContent = isEdit
+						? msg("msgSaving", "saving…")
+						: msg("msgPublishing", "publishing…");
+
+				try {
+					const payload = { content, images: currentImages, tags };
+					if (isEdit && editingId !== null) {
+						await updateEntry(editingId, payload);
+						showStatus("success", msg("msgSaved", "saved"));
+					} else {
+						await createEntry(payload);
+						showStatus("success", msg("msgPublished", "published"));
+					}
+					resetForm();
+					await loadEntries();
+				} catch (error) {
+					showStatus("error", error instanceof Error ? error.message : String(error));
+				} finally {
+					if (submitBtn) {
+						submitBtn.disabled = false;
+						submitBtn.textContent = original;
+					}
+				}
+			});
+
+			// ── 登录态 ───────────────────────────────────────────
+			function showEditor(email: string | undefined) {
+				signInPanel?.classList.add("hidden");
+				editorPanel?.classList.remove("hidden");
+				signOutBtn?.classList.remove("hidden");
+				if (adminUser) adminUser.textContent = email ? `已登录：${email}` : "";
+				void loadEntries();
+			}
+
+			function showSignIn() {
+				signInPanel?.classList.remove("hidden");
+				editorPanel?.classList.add("hidden");
+				signOutBtn?.classList.add("hidden");
+				if (adminUser) adminUser.textContent = "";
+			}
+
+			signInForm?.addEventListener("submit", async (event) => {
+				event.preventDefault();
+				const email = signInEmail?.value.trim() ?? "";
+				const password = signInPassword?.value ?? "";
+				if (!email || !password) return;
+
+				if (signInSubmit) signInSubmit.disabled = true;
+				const original = signInSubmit?.textContent ?? "";
+				if (signInSubmit) signInSubmit.textContent = msg("msgSigningIn", "signing in…");
+				statusBox?.classList.add("hidden");
+
+				try {
+					await signIn(email, password);
+					const user = await getCurrentUser();
+					showEditor(user?.email);
+				} catch (error) {
+					showStatus("error", msg("msgSignInFailed", "sign-in failed"));
+					console.error("[diary-admin] 登录失败:", error);
+				} finally {
+					if (signInSubmit) {
+						signInSubmit.disabled = false;
+						signInSubmit.textContent = original;
+					}
+				}
+			});
+
+			signOutBtn?.addEventListener("click", async () => {
+				await signOut();
+				showSignIn();
+			});
+
+			// ── 启动 ─────────────────────────────────────────────
+			(async () => {
+				if (!isDiarySupabaseConfigured()) {
+					showStatus("error", msg("msgNotConfigured", "not configured"));
+					signInPanel?.classList.add("hidden");
+					return;
+				}
+
+				const user = await getCurrentUser();
+				if (user) {
+					showEditor(user.email);
+				} else {
+					showSignIn();
+				}
+			})();
+		</script>
+	</body>
+</html>

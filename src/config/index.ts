@@ -63,6 +63,7 @@
 
 import { announcementConfig as announcementDefaults } from "./announcementConfig";
 import { fullscreenWallpaperConfig as fullscreenWallpaperDefaults } from "./backgroundWallpaper";
+import { diarySupabaseConfig as diarySupabaseDefaults } from "./diarySupabaseConfig";
 import { sakuraConfig as sakuraDefaults } from "./effectsConfig";
 import { expressiveCodeConfig as expressiveCodeDefaults } from "./expressiveCodeConfig";
 import { footerConfig as footerDefaults } from "./footerConfig";
@@ -107,6 +108,12 @@ export const footerConfig = withOverride("footerConfig", footerDefaults);
 export const guestbookConfig = withOverride(
 	"guestbookConfig",
 	guestbookDefaults,
+);
+
+// ─── 日记数据源 ─────────────────────────────────────────────
+export const diarySupabaseConfig = withOverride(
+	"diarySupabaseConfig",
+	diarySupabaseDefaults,
 );
 
 // ─── 内容与版权 ─────────────────────────────────────────────
