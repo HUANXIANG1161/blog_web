@@ -25,12 +25,24 @@ export function isSupabaseConfigured(): boolean {
 }
 
 /**
+ * 持久化登录态的客户端必须复用同一个实例。
+ *
+ * 原因：createClient() 每次调用都返回全新实例，而新实例是「匿名」的 ——
+ * 它的会话要从 localStorage 异步恢复。如果上传图片时新建一个实例，
+ * 请求会在会话恢复完成前发出，于是带着 anon key 去打需要 authenticated
+ * 的策略，报 "new row violates row-level security policy"。
+ *
+ * 留言板（persistSession: false）不需要共用，因为它本来就以匿名身份读写。
+ */
+let persistentClient: SupabaseClient | null = null;
+
+/**
  * 建立客户端。
  *
  * @param captchaToken 有值时作为请求头带上，供 Supabase 转发给 hCaptcha 校验。
- *   之所以每次新建而不是复用单例：token 是一次性的，复用到后续请求会失败。
- * @param persistSession 是否把登录态持久化到 localStorage。
- *   日记管理页需要 true（刷新后保持登录），公开页面用 false。
+ *   带了 token 的调用一律新建实例，因为 token 是一次性的，
+ *   复用到后续请求反而会失败。
+ * @param persistSession 是否复用带登录态的共享实例（管理页用 true）
  */
 export function createSupabaseClient(options?: {
 	captchaToken?: string | null;
@@ -44,6 +56,20 @@ export function createSupabaseClient(options?: {
 	}
 
 	const persistSession = options?.persistSession ?? false;
+
+	// 需要登录态、且没有一次性 token 时，复用共享实例
+	if (persistSession && !options?.captchaToken) {
+		if (!persistentClient) {
+			persistentClient = createClient(url, anonKey, {
+				auth: {
+					persistSession: true,
+					autoRefreshToken: true,
+					detectSessionInUrl: false,
+				},
+			});
+		}
+		return persistentClient;
+	}
 
 	return createClient(url, anonKey, {
 		auth: {
@@ -66,6 +92,9 @@ export function createSupabaseClient(options?: {
  * @param bucket 存储桶名
  * @param file 待上传文件
  * @param options.prefix 文件名前缀，便于在后台区分来源
+ * @param options.requireAuth 需要登录态时传 true。
+ *   此时会复用共享的已登录客户端，并等会话恢复完成再上传 ——
+ *   否则请求可能以匿名身份发出，被「只允许 authenticated」的策略拒绝。
  */
 export async function uploadImage(
 	bucket: string,
@@ -74,6 +103,7 @@ export async function uploadImage(
 		allowedTypes: string[];
 		maxBytes: number;
 		prefix: string;
+		requireAuth?: boolean;
 	},
 ): Promise<string> {
 	if (!options.allowedTypes.includes(file.type)) {
@@ -90,7 +120,19 @@ export async function uploadImage(
 	const suffix = Array.from(random, (b) => b.toString(16).padStart(2, "0")).join("");
 	const key = `${options.prefix}-${Date.now()}-${suffix}.${safeExt}`;
 
-	const supabase = createSupabaseClient();
+	const supabase = createSupabaseClient({
+		persistSession: options.requireAuth ?? false,
+	});
+
+	// 新实例的会话是异步从 localStorage 恢复的。
+	// 这里显式等一次，确保上传请求带上的是已登录身份而不是 anon key。
+	if (options.requireAuth) {
+		const { data } = await supabase.auth.getSession();
+		if (!data.session) {
+			throw new Error("NOT_SIGNED_IN");
+		}
+	}
+
 	const { error } = await supabase.storage.from(bucket).upload(key, file, {
 		contentType: file.type,
 		// 文件名随机，不会被覆盖，可以放心长缓存

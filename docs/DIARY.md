@@ -119,7 +119,39 @@ create policy "diary_image_read"
   for select
   to anon, authenticated
   using (bucket_id = 'diary');
+
+-- ⚠️ 必须再给登录用户一条 SELECT 策略，原因见下面的说明。
+-- 这条是上传能否成功的关键，漏了就会报 403。
+drop policy if exists "diary_image_returning" on storage.objects;
+create policy "diary_image_returning"
+  on storage.objects
+  for select
+  to authenticated
+  using (bucket_id = 'diary');
+
+-- 表级权限（RLS 策略之外还需要 GRANT，缺了同样会失败）
+grant usage on schema storage to anon, authenticated;
+grant select, insert, update, delete on storage.objects to authenticated;
+grant select on storage.objects to anon;
 ```
+
+### ❗ 为什么上传失败会报「违反 INSERT 策略」，即使 INSERT 策略是对的
+
+这是 Supabase Storage 一个很容易踩的坑，官方有专门的排错文档
+（[Storage error: 403 Forbidden: 'new row violates row-level security policy' on upload](https://supabase.com/docs/guides/troubleshooting/storage-error-403-forbidden-new-row-violates-row-level-security-policy-on-upload-a94384)）：
+
+> Storage API 在插入后会执行 `INSERT ... RETURNING *` 把文件元数据返回给客户端。
+> 如果 **SELECT 策略缺失或没覆盖到该对象**，数据库就读不回这一行，
+> 导致整个事务失败，最终报出的却是「违反 INSERT 策略」。
+
+所以症状是：
+
+- 报错信息说 `new row violates row-level security policy`
+- 但你的 `INSERT` 策略明明写得没问题
+- 真正缺的是 **SELECT 权限**
+
+**排查要点**：报这个错时不要只盯着 INSERT 策略，先去确认 SELECT 策略
+覆盖了当前用户角色和桶。
 
 > ⚠️ **桶是 public 的**，意味着任何拿到图片地址的人都能查看。
 > 对公开日记来说这是符合预期的，但你要知道这一点。

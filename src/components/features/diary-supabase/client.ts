@@ -25,12 +25,13 @@ const BUCKET = "diary";
 /** Supabase 是否已经配置好 */
 export const isDiarySupabaseConfigured = isSupabaseConfigured;
 
-/** 上传一张日记配图，返回公开访问地址 */
+/** 上传一张日记配图，返回公开访问地址。上传需要登录态 */
 export function uploadDiaryImage(file: File): Promise<string> {
 	return uploadImage(BUCKET, file, {
 		allowedTypes: diarySupabaseConfig.imageAllowedTypes,
 		maxBytes: diarySupabaseConfig.imageMaxBytes,
 		prefix: "diary",
+		requireAuth: true,
 	});
 }
 

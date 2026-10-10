@@ -111,6 +111,26 @@ create policy "guestbook_image_read"
 > 真正兜底的是这里桶上的 `File size limit` 和 `Allowed MIME types` 设置，
 > 一定要设。
 
+### ❗ 上传报「new row violates row-level security policy」但策略是对的？
+
+Supabase Storage 的 API 在插入后会执行 `INSERT ... RETURNING *` 取回文件元数据。
+**这一步走的是 SELECT 策略** —— 如果 SELECT 策略缺失或没覆盖当前角色，
+数据库读不回这一行，整个事务失败，但报出来的却是「违反 INSERT 策略」。
+
+官方排错文档：
+https://supabase.com/docs/guides/troubleshooting/storage-error-403-forbidden-new-row-violates-row-level-security-policy-on-upload-a94384
+
+所以上面第二条 `guestbook_image_read`（SELECT / anon,authenticated）
+**不是可选项**，它同时承担了「让访客看到图片」和「让上传能成功返回元数据」两个职责。
+
+如果还是失败，再补一条表级权限：
+
+```sql
+grant usage on schema storage to anon, authenticated;
+grant select, insert, update, delete on storage.objects to authenticated;
+grant select on storage.objects to anon;
+```
+
 ---
 
 ## 第 4 步：填写环境变量

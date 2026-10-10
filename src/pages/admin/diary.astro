@@ -373,6 +373,13 @@ const t = (key: I18nKey) => i18n(key);
 						renderImages();
 					} catch (error) {
 						const code = error instanceof Error ? error.message : "";
+						if (code === "NOT_SIGNED_IN") {
+							// 会话失效：提示重新登录，并切回登录界面
+							showStatus("error", "登录已过期，请重新登录");
+							showSignIn();
+							setupTurnstile();
+							break;
+						}
 						showStatus(
 							"error",
 							code === "IMAGE_TOO_LARGE"
