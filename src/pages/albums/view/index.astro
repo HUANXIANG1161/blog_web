@@ -130,131 +130,51 @@ if (!siteConfig.featurePages.albums) {
 
 {
 	albumsSupabaseConfig.enable && (
-		<script>
-			import {
-				fetchAlbumById,
-				fetchAlbumPhotos,
-				isAlbumsSupabaseConfigured,
-			} from "@components/features/albums-supabase/client";
+		<>
+			{/*
+				这个脚本会被 Astro 打包，URL 稳定。它在页面首次加载时执行一次，
+				把渲染函数挂到 window 上供下面的内联脚本调用。
+				详情：为什么不能只靠它自己，见内联脚本里的注释。
+			*/}
+			<script>
+				import { initAlbumDetailPage } from "@components/features/albums-supabase/detail";
 
-			const runtime = document.getElementById("album-runtime")?.dataset;
-			const loading = document.getElementById("album-detail-loading");
-			const errorBox = document.getElementById("album-detail-error");
-			const errorText = document.getElementById("album-detail-error-text");
-			const detail = document.getElementById("album-detail");
+				(
+					window as unknown as Record<string, unknown>
+				).__initAlbumDetailPage = initAlbumDetailPage;
 
-			function escapeHtml(value: unknown): string {
-				return String(value ?? "")
-					.replaceAll("&", "&amp;")
-					.replaceAll("<", "&lt;")
-					.replaceAll(">", "&gt;")
-					.replaceAll('"', "&quot;")
-					.replaceAll("'", "&#39;");
-			}
+				// 首次直接打开这个页面时，也由它启动
+				initAlbumDetailPage();
+			</script>
 
-			function showError(message: string) {
-				loading?.classList.add("hidden");
-				detail?.classList.add("hidden");
-				errorBox?.classList.remove("hidden");
-				if (errorText) errorText.textContent = message;
-			}
-
-			const load = async () => {
-				if (runtime?.supabaseEnabled !== "true") return;
-				if (!isAlbumsSupabaseConfigured()) {
-					showError(runtime?.loadFailed || "not configured");
-					return;
-				}
-
-				// 从查询参数取 id：/albums/view/?id=12
-				const params = new URLSearchParams(window.location.search);
-				const rawId = params.get("id") ?? "";
-				const albumId = Number(rawId);
-				if (!rawId || !Number.isFinite(albumId)) {
-					showError(runtime?.notFound || "not found");
-					return;
-				}
-
-				try {
-					const album = await fetchAlbumById(albumId);
-					if (!album) {
-						showError(runtime?.notFound || "not found");
-						return;
+			<script is:inline>
+				/**
+				 * 为什么还需要这个内联脚本：
+				 *
+				 * 站点用 Swup 做无刷新跳转。Swup 会把新页面的 <script type="module">
+				 * 标签插进 DOM，但浏览器不会重新执行 URL 相同的 ES 模块 ——
+				 * 实测从相册列表点进详情页时，上面那个脚本「一次都没执行」，
+				 * 于是详情页永远停在加载中。
+				 *
+				 * is:inline 的脚本每次插入 DOM 都会重新执行，所以由它来兜底：
+				 * 调用上面挂好的函数（函数内部自己等待容器出现）。
+				 * 直接打开本页时两者都会调用，靠函数内部的幂等标记去重。
+				 */
+				(function () {
+					function boot() {
+						var fn = window.__initAlbumDetailPage;
+						if (typeof fn === "function") return fn();
+						return false;
 					}
 
-					const photos = await fetchAlbumPhotos(albumId);
-
-					// 填充头部
-					const cover = album.cover || photos[0]?.thumbnail || "";
-					const coverImg = document.getElementById("album-cover") as HTMLImageElement | null;
-					const coverWrap = document.getElementById("album-cover-wrap");
-					if (cover && coverImg) {
-						coverImg.src = cover;
-						coverImg.alt = album.title;
-					} else {
-						coverWrap?.classList.add("hidden");
+					boot();
+					if (document.readyState === "loading") {
+						document.addEventListener("DOMContentLoaded", boot);
 					}
-
-					const titleEl = document.getElementById("album-title");
-					if (titleEl) titleEl.textContent = album.title;
-
-					if (album.description) {
-						const descEl = document.getElementById("album-description");
-						if (descEl) {
-							descEl.textContent = album.description;
-							descEl.classList.remove("hidden");
-						}
-					}
-
-					if (album.date) {
-						const wrap = document.getElementById("album-date-wrap");
-						const el = document.getElementById("album-date");
-						if (el) el.textContent = new Date(album.date).toLocaleDateString("zh-CN");
-						wrap?.classList.remove("hidden");
-					}
-
-					if (album.location) {
-						const wrap = document.getElementById("album-location-wrap");
-						const el = document.getElementById("album-location");
-						if (el) el.textContent = album.location;
-						wrap?.classList.remove("hidden");
-					}
-
-					const countEl = document.getElementById("album-count");
-					if (countEl) countEl.textContent = String(photos.length);
-
-					// 填充照片
-					const grid = document.getElementById("album-photos");
-					const emptyEl = document.getElementById("album-photos-empty");
-					if (grid) {
-						if (photos.length === 0) {
-							grid.innerHTML = "";
-							emptyEl?.classList.remove("hidden");
-						} else {
-							grid.innerHTML = photos
-								.map(
-									(photo, index) => `<div class="gallery-masonry-item">
-	<div data-fancybox="album-${album.id}" data-src="${escapeHtml(photo.src)}" data-caption="${escapeHtml(photo.title || photo.description || "")}" data-type="image" class="block rounded-xl overflow-hidden group cursor-pointer">
-		<img src="${escapeHtml(photo.thumbnail || photo.src)}" alt="${escapeHtml(photo.title)}" loading="${index < 6 ? "eager" : "lazy"}" decoding="async" class="w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105" />
-	</div>
-	${photo.title || photo.description ? `<div class="px-1 pt-2 pb-1"><div class="text-sm font-medium text-black/80 dark:text-white/80">${escapeHtml(photo.title)}</div>${photo.description ? `<div class="text-xs text-black/50 dark:text-white/50 mt-0.5">${escapeHtml(photo.description)}</div>` : ""}</div>` : ""}
-</div>`,
-								)
-								.join("");
-							emptyEl?.classList.add("hidden");
-						}
-					}
-
-					loading?.classList.add("hidden");
-					detail?.classList.remove("hidden");
-				} catch (error) {
-					console.error("[album-detail] 加载失败:", error);
-					showError(runtime?.loadFailed || "load failed");
-				}
-			};
-
-			void load();
-			document.addEventListener("swup:contentReplaced", () => void load());
-		</script>
+					document.addEventListener("swup:page:view", boot);
+					document.addEventListener("swup:visit:end", boot);
+				})();
+			</script>
+		</>
 	)
 }

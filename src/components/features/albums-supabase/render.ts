@@ -46,7 +46,13 @@ function renderAlbumCard(
 		album.location &&
 		`<div class="flex items-center gap-3 text-xs text-white/70 mt-1.5 flex-wrap"><span class="inline-flex items-center gap-0.5">${escapeHtml(album.location)}</span></div>`;
 
-	return `<a href="/albums/view/?id=${album.id}" class="album-card group relative block overflow-hidden rounded-xl transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+	// data-no-swup：让这个链接走普通页面跳转，不要被 Swup 拦截。
+	//
+	// 原因：站点用 Swup 做无刷新跳转，它只替换 <main> 里的内容，而页面脚本
+	// 标签在 main 之外 —— 跳转后脚本不会重新执行（浏览器也不会重新执行 URL
+	// 相同的 ES 模块），详情页就会一直停在加载中。详情页需要客户端拉数据，
+	// 所以这里干脆让它整页加载，简单可靠。
+	return `<a href="/albums/view/?id=${album.id}" data-no-swup="true" class="album-card group relative block overflow-hidden rounded-xl transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
 	<div class="aspect-4/3 relative overflow-hidden">
 		${coverHtml}
 		<div class="absolute top-2 right-2 flex items-center gap-1.5">

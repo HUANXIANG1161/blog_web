@@ -17,6 +17,7 @@ import {
 import type {
 	AlbumGroupRow,
 	AlbumPhotoRow,
+	AlbumRowWithPhotos,
 	AlbumWithPhotos,
 	PhotoUploadInput,
 } from "./types";
@@ -108,40 +109,68 @@ export async function fetchAlbumPhotos(
 }
 
 /**
+ * 相册列表的内存缓存。
+ *
+ * 为什么需要：站点用 Swup 做无刷新跳转，返回相册页时会重新执行页面脚本。
+ * 每次都重新查两遍数据库的话，返回时先显示缓存快照（客户端渲染的卡片不在里面），
+ * 等请求回来才重新填上 —— 中间那一瞬看起来就是「相册消失了」，同时也慢。
+ *
+ * 缓存只在当前页面会话内有效（存在模块作用域，刷新即清空），
+ * TTL 用来避免长时间停留后看到过期数据。管理页会用 force 绕过它。
+ */
+const CACHE_TTL_MS = 30_000;
+let albumsCache: { at: number; data: AlbumWithPhotos[] } | null = null;
+
+/** 清掉缓存。改动相册/照片后调用，避免列表显示旧数据。 */
+export function invalidateAlbumsCache(): void {
+	albumsCache = null;
+}
+
+/** 列表页用的嵌套 select：相册字段 + 内嵌的照片 */
+const GROUP_WITH_PHOTOS_SELECT = `${GROUP_COLUMNS},${PHOTOS_TABLE}(${PHOTO_COLUMNS})`;
+
+/**
  * 一次性读取相册列表页需要的数据：每个相册 + 它的照片。
  *
- * 没有用嵌套 select，因为那样返回的形状不稳定；这里查两次再在内存里归并，
- * 相册数量是几十的量级，两次查询足够了。
+ * 用 PostgREST 的嵌套 select 一次查完。实测到 Supabase 单次请求约 1.2 秒，
+ * 拆成两次串行就是 2.5 秒 —— 合并成一次能省掉整整一趟往返。
+ *
+ * @param force 为 true 时跳过缓存（管理页要用最新数据）
  */
-export async function fetchAlbumsWithPhotos(): Promise<AlbumWithPhotos[]> {
-	const albums = await fetchAlbums(0, 200);
-	if (albums.length === 0) return [];
+export async function fetchAlbumsWithPhotos(
+	force = false,
+): Promise<AlbumWithPhotos[]> {
+	if (!force && albumsCache && Date.now() - albumsCache.at < CACHE_TTL_MS) {
+		return albumsCache.data;
+	}
 
 	const supabase = createSupabaseClient();
 	const { data, error } = await runQuery(
 		supabase
-			.from(PHOTOS_TABLE)
-			.select(PHOTO_COLUMNS)
-			.in(
-				"album_id",
-				albums.map((a) => a.id),
-			)
-			.order("created_at", { ascending: true }),
+			.from(GROUPS_TABLE)
+			.select(GROUP_WITH_PHOTOS_SELECT)
+			.order("created_at", { ascending: false }),
 	);
 
 	if (error) throw error;
 
-	const byAlbum = new Map<number, AlbumPhotoRow[]>();
-	for (const photo of (data ?? []) as AlbumPhotoRow[]) {
-		const list = byAlbum.get(photo.album_id);
-		if (list) list.push(photo);
-		else byAlbum.set(photo.album_id, [photo]);
-	}
+	const result = ((data ?? []) as unknown as AlbumRowWithPhotos[]).map(
+		(row) => {
+			// 内嵌字段叫 album_photos，这里拆成 { album, photos } 的形状
+			const { album_photos, ...album } = row;
+			return {
+				album: album as AlbumGroupRow,
+				photos: (album_photos ?? []).slice().sort(
+					(a, b) =>
+						new Date(a.created_at).getTime() -
+						new Date(b.created_at).getTime(),
+				),
+			};
+		},
+	);
 
-	return albums.map((album) => ({
-		album,
-		photos: byAlbum.get(album.id) ?? [],
-	}));
+	albumsCache = { at: Date.now(), data: result };
+	return result;
 }
 
 // ─── 管理页用：需要登录 ────────────────────────────────────────
@@ -168,6 +197,7 @@ export async function createAlbum(input: {
 	);
 
 	if (error) throw error;
+	invalidateAlbumsCache();
 	return data as AlbumGroupRow;
 }
 
@@ -187,6 +217,7 @@ export async function updateAlbum(
 		supabase.from(GROUPS_TABLE).update(input).eq("id", id),
 	);
 	if (error) throw error;
+	invalidateAlbumsCache();
 }
 
 /**
@@ -200,6 +231,7 @@ export async function deleteAlbum(id: number): Promise<void> {
 		supabase.from(GROUPS_TABLE).delete().eq("id", id),
 	);
 	if (error) throw error;
+	invalidateAlbumsCache();
 }
 
 /** 往相册里加一张照片 */
@@ -222,6 +254,7 @@ export async function createPhoto(
 	);
 
 	if (error) throw error;
+	invalidateAlbumsCache();
 	return data as AlbumPhotoRow;
 }
 
@@ -232,6 +265,7 @@ export async function deletePhoto(id: number): Promise<void> {
 		supabase.from(PHOTOS_TABLE).delete().eq("id", id),
 	);
 	if (error) throw error;
+	invalidateAlbumsCache();
 }
 
 /** 修改照片的标题与描述 */
@@ -244,4 +278,5 @@ export async function updatePhoto(
 		supabase.from(PHOTOS_TABLE).update(input).eq("id", id),
 	);
 	if (error) throw error;
+	invalidateAlbumsCache();
 }

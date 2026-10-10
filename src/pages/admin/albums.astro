@@ -456,7 +456,8 @@ const t = (key: I18nKey) => i18n(key);
 			// ── 相册列表 ────────────────────────────────────────
 			async function loadAlbums() {
 				// 一次拿到相册和各自的照片，省掉额外一次计数查询
-				const withPhotos = await fetchAlbumsWithPhotos();
+				// 管理页始终拿最新数据，绕过列表页的内存缓存
+				const withPhotos = await fetchAlbumsWithPhotos(true);
 				albums = withPhotos.map((item) => item.album);
 				if (!albumPicker) return;
 

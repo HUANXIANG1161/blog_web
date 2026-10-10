@@ -33,6 +33,14 @@ export interface AlbumWithPhotos {
 	photos: AlbumPhotoRow[];
 }
 
+/**
+ * 嵌套查询返回的原始行：相册字段 + 内嵌的照片数组。
+ * PostgREST 用外键名 `album_photos` 作为内嵌字段，所以要和 AlbumWithPhotos 区分开。
+ */
+export interface AlbumRowWithPhotos extends AlbumGroupRow {
+	album_photos: AlbumPhotoRow[] | null;
+}
+
 /** 上传一张照片时要提交的字段 */
 export interface PhotoUploadInput {
 	albumId: number;

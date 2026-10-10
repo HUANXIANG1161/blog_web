@@ -160,8 +160,10 @@ const subtitle = i18n(I18nKey.albumsSubtitle);
 					}
 				};
 
+				// 立即跑一次；Swup 跳转回来时再跑一次。
+				// 用 swup:page:view（站点其它脚本也用这个），它在内容替换后触发。
 				void load();
-				document.addEventListener("swup:contentReplaced", () => void load());
+				document.addEventListener("swup:page:view", () => void load());
 			}
 		</script>
 	)
