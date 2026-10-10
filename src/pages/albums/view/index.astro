@@ -1,0 +1,260 @@
+---
+/**
+ * 相册详情页（Supabase 数据源）
+ *
+ * 为什么是固定路径 + 查询参数，而不是 /albums/<id>/：
+ *   本站是 output: "static"，动态路由必须有 getStaticPaths() 在构建时枚举出
+ *   所有路径。而 Supabase 里的相册 id 在构建时拿不到（也可能随时新增），
+ *   所以 /albums/<id>/ 这种动态路由生成不出来。
+ *
+ *   于是改用固定路径 /albums/view/?id=N：页面本身是静态的，id 由查询参数
+ *   在客户端解析后拉取数据。代价是 URL 不好看，但不需要任何服务端能力。
+ *
+ *   本地相册（public/images/albums）仍然走 /albums/<文件夹名>/ 的静态路由。
+ */
+import { Icon } from "astro-icon/components";
+
+import { albumsSupabaseConfig, siteConfig } from "@/config";
+import I18nKey from "@/i18n/i18nKey";
+import { i18n } from "@/i18n/translation";
+import MainGridLayout from "@/layouts/MainGridLayout.astro";
+
+export const prerender = true;
+
+if (!siteConfig.featurePages.albums) {
+	return Astro.redirect("/404/");
+}
+---
+
+<MainGridLayout title={i18n(I18nKey.albums)} description={i18n(I18nKey.albumsSubtitle)}>
+	<script>
+		import("@/scripts/right-sidebar-layout.js");
+		import { loadIconify } from "@/utils/icon-loader";
+
+		loadIconify().catch((error: unknown) => {
+			console.error("Failed to load Iconify:", error);
+		});
+	</script>
+
+	<!-- 加载态 -->
+	<div id="album-detail-loading" class="card-base px-6 py-16 text-center">
+		<Icon
+			name="material-symbols:progress-activity"
+			class="text-5xl text-black/20 dark:text-white/20 animate-spin mb-3"
+		/>
+		<p class="text-black/50 dark:text-white/50">{i18n(I18nKey.albumsLoading)}</p>
+	</div>
+
+	<!-- 出错 / 找不到 -->
+	<div id="album-detail-error" class="card-base px-6 py-16 text-center hidden">
+		<Icon
+			name="material-symbols:photo-library"
+			class="text-6xl text-black/15 dark:text-white/15 mb-4"
+		/>
+		<p id="album-detail-error-text" class="text-lg text-black/50 dark:text-white/50">
+			{i18n(I18nKey.albumsLoadFailed)}
+		</p>
+		<a
+			href="/albums/"
+			class="inline-flex items-center gap-1 text-sm text-(--primary) hover:underline mt-4"
+		>
+			<Icon name="material-symbols:arrow-back" class="text-base" />
+			{i18n(I18nKey.albumsBackToList)}
+		</a>
+	</div>
+
+	<!-- 实际内容，拉取成功后填充 -->
+	<div id="album-detail" class="hidden">
+		<!-- 封面横幅 -->
+		<div class="w-full rounded-(--radius-large) overflow-hidden relative">
+			<div id="album-cover-wrap" class="relative w-full aspect-3/1 min-h-50 max-h-90">
+				<img id="album-cover" src="" alt="" class="w-full h-full object-cover" />
+				<div class="absolute inset-0 bg-linear-to-t from-black/70 via-black/30 to-transparent"></div>
+				<a
+					href="/albums/"
+					class="absolute top-4 left-4 inline-flex items-center gap-1.5 text-sm text-white/90 hover:text-white bg-black/30 hover:bg-black/50 backdrop-blur-sm px-3 py-1.5 rounded-lg transition-colors"
+				>
+					<Icon name="material-symbols:arrow-back" class="text-base" />
+					{i18n(I18nKey.albumsBackToList)}
+				</a>
+				<div class="absolute bottom-0 left-0 right-0 p-6">
+					<div
+						id="album-title"
+						class="text-2xl sm:text-3xl font-bold text-white mb-2 drop-shadow-lg"
+					>
+					</div>
+					<p
+						id="album-description"
+						class="hidden text-sm text-white/75 leading-relaxed mb-2 max-w-2xl line-clamp-2"
+					>
+					</p>
+					<div class="flex items-center gap-4 text-sm text-white/80 flex-wrap">
+						<span id="album-date-wrap" class="hidden inline-flex items-center gap-1">
+							<Icon name="material-symbols:calendar-today" class="text-sm" />
+							<span id="album-date"></span>
+						</span>
+						<span id="album-location-wrap" class="hidden inline-flex items-center gap-1">
+							<Icon name="material-symbols:location-on" class="text-sm" />
+							<span id="album-location"></span>
+						</span>
+						<span class="inline-flex items-center gap-1">
+							<Icon name="material-symbols:photo-library" class="text-sm" />
+							<span id="album-count">0</span>
+							{i18n(I18nKey.albumsPhotosCount)}
+						</span>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- 照片瀑布流 -->
+		<div class="w-full rounded-(--radius-large) overflow-hidden relative mt-4">
+			<div class="card-base z-10 px-6 py-6 relative w-full">
+				<div id="album-photos" class="gallery-masonry"></div>
+				<p id="album-photos-empty" class="hidden text-lg text-center py-16 text-black/40 dark:text-white/40">
+					{i18n(I18nKey.albumsEmpty)}
+				</p>
+			</div>
+		</div>
+	</div>
+
+	<div
+		id="album-runtime"
+		class="hidden"
+		aria-hidden="true"
+		data-supabase-enabled={albumsSupabaseConfig.enable ? "true" : "false"}
+		data-not-found={i18n(I18nKey.albumsEmpty)}
+		data-load-failed={i18n(I18nKey.albumsLoadFailed)}
+	></div>
+</MainGridLayout>
+
+{
+	albumsSupabaseConfig.enable && (
+		<script>
+			import {
+				fetchAlbumById,
+				fetchAlbumPhotos,
+				isAlbumsSupabaseConfigured,
+			} from "@components/features/albums-supabase/client";
+
+			const runtime = document.getElementById("album-runtime")?.dataset;
+			const loading = document.getElementById("album-detail-loading");
+			const errorBox = document.getElementById("album-detail-error");
+			const errorText = document.getElementById("album-detail-error-text");
+			const detail = document.getElementById("album-detail");
+
+			function escapeHtml(value: unknown): string {
+				return String(value ?? "")
+					.replaceAll("&", "&amp;")
+					.replaceAll("<", "&lt;")
+					.replaceAll(">", "&gt;")
+					.replaceAll('"', "&quot;")
+					.replaceAll("'", "&#39;");
+			}
+
+			function showError(message: string) {
+				loading?.classList.add("hidden");
+				detail?.classList.add("hidden");
+				errorBox?.classList.remove("hidden");
+				if (errorText) errorText.textContent = message;
+			}
+
+			const load = async () => {
+				if (runtime?.supabaseEnabled !== "true") return;
+				if (!isAlbumsSupabaseConfigured()) {
+					showError(runtime?.loadFailed || "not configured");
+					return;
+				}
+
+				// 从查询参数取 id：/albums/view/?id=12
+				const params = new URLSearchParams(window.location.search);
+				const rawId = params.get("id") ?? "";
+				const albumId = Number(rawId);
+				if (!rawId || !Number.isFinite(albumId)) {
+					showError(runtime?.notFound || "not found");
+					return;
+				}
+
+				try {
+					const album = await fetchAlbumById(albumId);
+					if (!album) {
+						showError(runtime?.notFound || "not found");
+						return;
+					}
+
+					const photos = await fetchAlbumPhotos(albumId);
+
+					// 填充头部
+					const cover = album.cover || photos[0]?.thumbnail || "";
+					const coverImg = document.getElementById("album-cover") as HTMLImageElement | null;
+					const coverWrap = document.getElementById("album-cover-wrap");
+					if (cover && coverImg) {
+						coverImg.src = cover;
+						coverImg.alt = album.title;
+					} else {
+						coverWrap?.classList.add("hidden");
+					}
+
+					const titleEl = document.getElementById("album-title");
+					if (titleEl) titleEl.textContent = album.title;
+
+					if (album.description) {
+						const descEl = document.getElementById("album-description");
+						if (descEl) {
+							descEl.textContent = album.description;
+							descEl.classList.remove("hidden");
+						}
+					}
+
+					if (album.date) {
+						const wrap = document.getElementById("album-date-wrap");
+						const el = document.getElementById("album-date");
+						if (el) el.textContent = new Date(album.date).toLocaleDateString("zh-CN");
+						wrap?.classList.remove("hidden");
+					}
+
+					if (album.location) {
+						const wrap = document.getElementById("album-location-wrap");
+						const el = document.getElementById("album-location");
+						if (el) el.textContent = album.location;
+						wrap?.classList.remove("hidden");
+					}
+
+					const countEl = document.getElementById("album-count");
+					if (countEl) countEl.textContent = String(photos.length);
+
+					// 填充照片
+					const grid = document.getElementById("album-photos");
+					const emptyEl = document.getElementById("album-photos-empty");
+					if (grid) {
+						if (photos.length === 0) {
+							grid.innerHTML = "";
+							emptyEl?.classList.remove("hidden");
+						} else {
+							grid.innerHTML = photos
+								.map(
+									(photo, index) => `<div class="gallery-masonry-item">
+	<div data-fancybox="album-${album.id}" data-src="${escapeHtml(photo.src)}" data-caption="${escapeHtml(photo.title || photo.description || "")}" data-type="image" class="block rounded-xl overflow-hidden group cursor-pointer">
+		<img src="${escapeHtml(photo.thumbnail || photo.src)}" alt="${escapeHtml(photo.title)}" loading="${index < 6 ? "eager" : "lazy"}" decoding="async" class="w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105" />
+	</div>
+	${photo.title || photo.description ? `<div class="px-1 pt-2 pb-1"><div class="text-sm font-medium text-black/80 dark:text-white/80">${escapeHtml(photo.title)}</div>${photo.description ? `<div class="text-xs text-black/50 dark:text-white/50 mt-0.5">${escapeHtml(photo.description)}</div>` : ""}</div>` : ""}
+</div>`,
+								)
+								.join("");
+							emptyEl?.classList.add("hidden");
+						}
+					}
+
+					loading?.classList.add("hidden");
+					detail?.classList.remove("hidden");
+				} catch (error) {
+					console.error("[album-detail] 加载失败:", error);
+					showError(runtime?.loadFailed || "load failed");
+				}
+			};
+
+			void load();
+			document.addEventListener("swup:contentReplaced", () => void load());
+		</script>
+	)
+}

@@ -71,6 +71,21 @@ export async function fetchAlbums(
 	return (data ?? []) as AlbumGroupRow[];
 }
 
+/** 读取单个相册，不存在时返回 null */
+export async function fetchAlbumById(
+	id: number,
+): Promise<AlbumGroupRow | null> {
+	const supabase = createSupabaseClient();
+	const { data, error } = await supabase
+		.from(GROUPS_TABLE)
+		.select(GROUP_COLUMNS)
+		.eq("id", id)
+		.maybeSingle();
+
+	if (error) throw error;
+	return (data as AlbumGroupRow | null) ?? null;
+}
+
 /** 读取某个相册下的全部照片，按上传时间正序 */
 export async function fetchAlbumPhotos(
 	albumId: number,

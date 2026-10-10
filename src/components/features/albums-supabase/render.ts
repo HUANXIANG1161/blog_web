@@ -46,7 +46,7 @@ function renderAlbumCard(
 		album.location &&
 		`<div class="flex items-center gap-3 text-xs text-white/70 mt-1.5 flex-wrap"><span class="inline-flex items-center gap-0.5">${escapeHtml(album.location)}</span></div>`;
 
-	return `<a href="/albums/${album.id}/" class="album-card group relative block overflow-hidden rounded-xl transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+	return `<a href="/albums/view/?id=${album.id}" class="album-card group relative block overflow-hidden rounded-xl transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
 	<div class="aspect-4/3 relative overflow-hidden">
 		${coverHtml}
 		<div class="absolute top-2 right-2 flex items-center gap-1.5">
