@@ -306,7 +306,8 @@ const t = (key: I18nKey) => i18n(key);
 			data-msg-saved={t(I18nKey.diaryAdminSaved)}
 			data-msg-cover-set={t(I18nKey.albumsAdminCoverSet)}
 			data-msg-cover={t(I18nKey.albumsAdminCover)}
-			data-msg-no-albums={t(I18nKey.albumsAdminSelectAlbum)}
+			data-msg-no-albums={t(I18nKey.albumsAdminNoAlbums)}
+			data-msg-select-album={t(I18nKey.albumsAdminSelectAlbum)}
 			data-msg-photo-count={t(I18nKey.albumsAdminPhotoCount)}
 			data-msg-photo-title={t(I18nKey.albumsAdminPhotoTitle)}
 			data-msg-photo-desc={t(I18nKey.albumsAdminPhotoDescription)}
@@ -324,6 +325,7 @@ const t = (key: I18nKey) => i18n(key);
 				deletePhoto,
 				fetchAlbumPhotos,
 				fetchAlbums,
+				fetchAlbumsWithPhotos,
 				isAlbumsSupabaseConfigured,
 				updateAlbum,
 				updatePhoto,
@@ -453,20 +455,34 @@ const t = (key: I18nKey) => i18n(key);
 
 			// ── 相册列表 ────────────────────────────────────────
 			async function loadAlbums() {
-				albums = await fetchAlbums(0, 200);
+				// 一次拿到相册和各自的照片，省掉额外一次计数查询
+				const withPhotos = await fetchAlbumsWithPhotos();
+				albums = withPhotos.map((item) => item.album);
 				if (!albumPicker) return;
 
 				const previous = albumPicker.value;
+				// 选项里带上张数，这样不点开也知道哪个相册有内容
 				albumPicker.innerHTML =
-					`<option value="">${escapeHtml(msg("msgNoAlbums", "Select album"))}</option>` +
-					albums
-						.map((a) => `<option value="${a.id}">${escapeHtml(a.title)}</option>`)
+					`<option value="">${escapeHtml(msg("msgSelectAlbum", "选择相册"))}</option>` +
+					withPhotos
+						.map(
+							(item) =>
+								`<option value="${item.album.id}">${escapeHtml(item.album.title)} (${item.photos.length} ${escapeHtml(msg("msgPhotoCount", "张"))})</option>`,
+						)
 						.join("");
 
 				if (previous && albums.some((a) => String(a.id) === previous)) {
 					albumPicker.value = previous;
 				} else if (currentAlbumId && albums.some((a) => a.id === currentAlbumId)) {
 					albumPicker.value = String(currentAlbumId);
+				} else if (albums.length > 0) {
+					// 自动选中第一个相册：否则进页面只看到一句「请先选择相册」，
+					// 看起来像加载失败，得点开下拉框才知道其实有数据
+					albumPicker.value = String(albums[0].id);
+					await loadPhotos(albums[0].id);
+				} else if (uploadNoAlbum) {
+					// 真的一个相册都没有
+					uploadNoAlbum.textContent = msg("msgNoAlbums", "还没有相册，先建一个吧");
 				}
 			}
 
