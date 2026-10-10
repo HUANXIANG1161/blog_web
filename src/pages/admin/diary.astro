@@ -117,6 +117,9 @@ const t = (key: I18nKey) => i18n(key);
 							class="w-full px-4 py-2.5 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-(--primary)/50 transition-all"
 						/>
 					</div>
+					<!-- Cloudflare Turnstile 验证码。只有在 Supabase 开启了
+					     Attack Protection 时才会渲染出内容 -->
+					<div id="turnstile-container" class="flex justify-center"></div>
 					<button
 						type="submit"
 						id="sign-in-submit"
@@ -253,6 +256,8 @@ const t = (key: I18nKey) => i18n(key);
 			data-msg-image-bad-type={t(I18nKey.guestbookImageBadType)}
 			data-msg-not-configured={t(I18nKey.guestbookNotConfigured)}
 			data-msg-too-many-images="图片数量已达上限"
+			data-msg-captcha-required={t(I18nKey.guestbookCaptchaRequired)}
+			data-captcha-sitekey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? ""}
 			data-label-publish={t(I18nKey.diaryAdminPublish)}
 			data-label-save={t(I18nKey.diaryAdminSave)}
 			data-label-edit={t(I18nKey.diaryAdminEditEntry)}
@@ -543,11 +548,72 @@ const t = (key: I18nKey) => i18n(key);
 				if (adminUser) adminUser.textContent = "";
 			}
 
+			// ── Cloudflare Turnstile ─────────────────────────────
+			// Supabase 开启 Attack Protection 后，登录请求必须带验证码 token。
+			// 这里渲染 widget，token 拿到后随登录请求一起发给 Supabase。
+			const turnstileContainer = document.getElementById("turnstile-container");
+			const turnstileSiteKey = rt.captchaSitekey || "";
+			let captchaToken: string | null = null;
+			let turnstileWidgetId: string | null = null;
+
+			function resetCaptcha() {
+				captchaToken = null;
+				if (typeof window.turnstile !== "undefined" && turnstileWidgetId) {
+					try {
+						window.turnstile.reset(turnstileWidgetId);
+					} catch {
+						// widget 可能已被移除，忽略
+					}
+				}
+			}
+
+			function setupTurnstile() {
+				if (!turnstileSiteKey || !turnstileContainer) return;
+
+				const script = document.createElement("script");
+				script.src =
+					"https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+				script.async = true;
+				script.defer = true;
+				script.onload = () => {
+					if (typeof window.turnstile === "undefined") return;
+					turnstileWidgetId = window.turnstile.render(turnstileContainer, {
+						sitekey: turnstileSiteKey,
+						theme: document.documentElement.classList.contains("dark")
+							? "dark"
+							: "light",
+						callback: (token: string) => {
+							captchaToken = token;
+						},
+						"expired-callback": () => {
+							captchaToken = null;
+						},
+						"error-callback": () => {
+							captchaToken = null;
+						},
+					});
+				};
+				document.head.appendChild(script);
+			}
+
+			/** 把 Supabase 的验证码报错翻译成能看懂的提示 */
+			function isCaptchaError(error: unknown): boolean {
+				const code = (error as { code?: string } | null)?.code;
+				const message = error instanceof Error ? error.message : String(error);
+				return code === "captcha_failed" || /captcha/i.test(message);
+			}
+
 			signInForm?.addEventListener("submit", async (event) => {
 				event.preventDefault();
 				const email = signInEmail?.value.trim() ?? "";
 				const password = signInPassword?.value ?? "";
 				if (!email || !password) return;
+
+				// 配了验证码就必须先拿到 token，否则请求会被 Supabase 直接拒绝
+				if (turnstileSiteKey && !captchaToken) {
+					showStatus("error", msg("msgCaptchaRequired", "please complete the captcha"));
+					return;
+				}
 
 				if (signInSubmit) signInSubmit.disabled = true;
 				const original = signInSubmit?.textContent ?? "";
@@ -555,17 +621,24 @@ const t = (key: I18nKey) => i18n(key);
 				statusBox?.classList.add("hidden");
 
 				try {
-					await signIn(email, password);
+					await signIn(email, password, captchaToken);
 					const user = await getCurrentUser();
 					showEditor(user?.email);
 				} catch (error) {
-					showStatus("error", msg("msgSignInFailed", "sign-in failed"));
+					showStatus(
+						"error",
+						isCaptchaError(error)
+							? msg("msgCaptchaRequired", "captcha check failed")
+							: msg("msgSignInFailed", "sign-in failed"),
+					);
 					console.error("[diary-admin] 登录失败:", error);
 				} finally {
 					if (signInSubmit) {
 						signInSubmit.disabled = false;
 						signInSubmit.textContent = original;
 					}
+					// token 是一次性的，无论成败都要换一个新的
+					resetCaptcha();
 				}
 			});
 
@@ -587,6 +660,7 @@ const t = (key: I18nKey) => i18n(key);
 					showEditor(user.email);
 				} else {
 					showSignIn();
+					setupTurnstile();
 				}
 			})();
 		</script>

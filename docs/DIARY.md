@@ -152,6 +152,42 @@ PUBLIC_SUPABASE_URL=https://你的项目ID.supabase.co
 PUBLIC_SUPABASE_ANON_KEY=你的anon key
 ```
 
+如果你在 Supabase 开启了验证码保护（见下面第 5.5 步），还要再加一个。
+
+## 第 5.5 步：如果开了验证码保护，必须配 Turnstile
+
+**这一步很容易漏，漏了就会「登录失败」且看不出原因。**
+
+如果你在 **Authentication → Attack Protection** 里开启了验证码保护，
+Supabase 会拒绝所有不带验证码 token 的登录请求：
+
+```json
+{"error_code":"captcha_failed",
+ "msg":"captcha protection: request disallowed (no captcha_token found)"}
+```
+
+Supabase 的验证码保护用的是 **Cloudflare Turnstile**（注意：不是 hCaptcha，
+两者不通用）。所以需要：
+
+1. 打开 https://dash.cloudflare.com → **Turnstile** → **Add widget**
+2. 填你的域名（本地调试再加 `localhost`）
+3. 拿到 **Site Key** 和 **Secret Key**
+4. **Secret Key** → 填进 Supabase 的 **Authentication → Attack Protection**
+   （你如果已经开了保护，这一步应该已经填过了）
+5. **Site Key** → 填进项目根目录的 `.env`：
+
+```bash
+PUBLIC_TURNSTILE_SITE_KEY=你的Turnstile SiteKey
+```
+
+6. **重启 dev server**（改了 `.env` 必须重启，Vite 不会热更新环境变量）
+
+配好后，登录表单上方会出现一个 Turnstile 验证框，通过后才能登录。
+
+> ⚠️ 常见误区：以为「Supabase 后台填过 Secret 就行了」。
+> 不够 —— 前端还需要 Site Key 才能渲染出验证框、
+> 拿到 token 交给 Supabase 校验。两个都要填，而且是两个不同的值。
+
 ---
 
 ## 第 6 步：开始写日记
@@ -186,6 +222,19 @@ PUBLIC_SUPABASE_ANON_KEY=你的anon key
 打开控制台看报错。常见原因：
 - 账号没勾 Auto Confirm，处于未确认状态
 - `.env` 没配或改了没重启 dev server
+
+**登录一直提示「登录失败」**
+
+先看浏览器控制台里的真实报错。如果看到 `captcha_failed`，
+说明 **Supabase 开了验证码保护但前端没配 Turnstile Site Key**，
+按上面「第 5.5 步」配置 `PUBLIC_TURNSTILE_SITE_KEY` 并重启 dev server。
+
+判断方法：登录表单上方**有没有出现验证框**。
+没有验证框 = Site Key 没配。
+
+其他可能：
+- `invalid_credentials` → 邮箱或密码错了
+- `email_not_confirmed` → 账号未确认，去 Authentication → Users 检查状态
 
 **能登录但发布失败**
 

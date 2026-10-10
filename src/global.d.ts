@@ -122,6 +122,28 @@ declare global {
 				reset: (widgetId?: string) => void;
 		  }
 		| undefined;
+
+	/**
+	 * Cloudflare Turnstile 的全局对象，由
+	 * https://challenges.cloudflare.com/turnstile/v0/api.js 注入。
+	 * 日记管理页登录时用它拿验证码 token，交给 Supabase 校验。
+	 */
+	var turnstile:
+		| {
+				render: (
+					container: HTMLElement,
+					options: {
+						sitekey: string;
+						theme?: "light" | "dark" | "auto";
+						callback?: (token: string) => void;
+						"expired-callback"?: () => void;
+						"error-callback"?: () => void;
+					},
+				) => string;
+				reset: (widgetId?: string) => void;
+				remove: (widgetId?: string) => void;
+		  }
+		| undefined;
 }
 
 interface SearchResult {

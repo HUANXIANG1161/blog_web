@@ -66,11 +66,23 @@ export async function getCurrentUser() {
 	return data.user ?? null;
 }
 
-/** 邮箱密码登录 */
-export async function signIn(email: string, password: string): Promise<void> {
+/**
+ * 邮箱密码登录。
+ *
+ * @param captchaToken Supabase 开启了 Attack Protection 时必填。
+ *   本站用的是 Cloudflare Turnstile：客户端拿到 token 后由 supabase-js
+ *   放进请求体交给 Supabase 校验，校验不过服务端直接拒绝（captcha_failed）。
+ *   token 是一次性的，登录失败后要重新获取。
+ */
+export async function signIn(
+	email: string,
+	password: string,
+	captchaToken?: string | null,
+): Promise<void> {
 	const { error } = await adminClient().auth.signInWithPassword({
 		email,
 		password,
+		options: captchaToken ? { captchaToken } : undefined,
 	});
 	if (error) throw error;
 }
