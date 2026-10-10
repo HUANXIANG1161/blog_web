@@ -1,0 +1,791 @@
+---
+import { Icon } from "astro-icon/components";
+
+import { albumsSupabaseConfig, siteConfig } from "@/config";
+import I18nKey from "@/i18n/i18nKey";
+import { i18n } from "@/i18n/translation";
+// 复用主站的样式与设计变量，保证与管理页之外的页面观感一致
+import "../../styles/variables.styl";
+import "../../styles/main.css";
+
+export const prerender = true;
+
+if (!albumsSupabaseConfig.enable) {
+	return Astro.redirect("/404/");
+}
+
+const t = (key: I18nKey) => i18n(key);
+---
+
+<!doctype html>
+<html lang={siteConfig.lang.replace("_", "-")}>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="robots" content="noindex, nofollow" />
+		<title>{t(I18nKey.albumsAdmin)} · {siteConfig.title}</title>
+		<link rel="icon" href="/favicon/favicon.ico" sizes="64x64" />
+		<script is:inline>
+			// 与主站一致：首帧前定好主题，避免闪白
+			(function () {
+				try {
+					var theme = localStorage.getItem("theme") || "light";
+					if (theme === "dark") document.documentElement.classList.add("dark");
+					var hue = localStorage.getItem("hue") || "250";
+					document.documentElement.style.setProperty("--hue", hue);
+				} catch (e) {}
+			})();
+		</script>
+		<style is:global>
+			body {
+				background: var(--page-bg);
+			}
+		</style>
+	</head>
+
+	<body class="min-h-screen bg-(--page-bg) text-black/90 dark:text-white/90">
+		<div class="max-w-5xl mx-auto px-4 py-8 sm:py-12">
+			<!-- 顶部 -->
+			<header class="flex items-center justify-between gap-4 mb-8">
+				<div>
+					<h1 class="text-2xl font-bold flex items-center gap-2">
+						<Icon name="material-symbols:photo-library" class="text-(--primary)" />
+						{t(I18nKey.albumsAdmin)}
+					</h1>
+					<p id="admin-user" class="text-sm text-black/50 dark:text-white/50 mt-1"></p>
+				</div>
+				<div class="flex items-center gap-2">
+					<a
+						href="/albums/"
+						class="text-sm px-3 py-2 rounded-lg text-black/60 dark:text-white/60 hover:text-(--primary) transition-colors"
+					>
+						← 相册页
+					</a>
+					<button
+						type="button"
+						id="sign-out-btn"
+						class="hidden text-sm px-3 py-2 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 hover:border-(--primary) hover:text-(--primary) transition-all"
+					>
+						{t(I18nKey.diaryAdminSignOut)}
+					</button>
+				</div>
+			</header>
+
+			<div
+				id="admin-status"
+				class="hidden mb-6 px-4 py-3 rounded-lg text-sm"
+				role="status"
+				aria-live="polite"
+			>
+			</div>
+
+			<!-- ── 登录 ──────────────────────────────────────── -->
+			<section id="sign-in-panel" class="card-base p-6 sm:p-8 max-w-md mx-auto">
+				<h2 class="text-lg font-bold mb-1">{t(I18nKey.diaryAdminSignIn)}</h2>
+				<p class="text-sm text-black/50 dark:text-white/50 mb-6">只有站长账号可以登录</p>
+				<form id="sign-in-form" class="space-y-4">
+					<div>
+						<label
+							for="sign-in-email"
+							class="block text-sm font-medium text-black/70 dark:text-white/70 mb-1.5"
+							>{t(I18nKey.diaryAdminEmail)}</label
+						>
+						<input
+							type="email"
+							id="sign-in-email"
+							autocomplete="username"
+							required
+							class="w-full px-4 py-2.5 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-(--primary)/50 transition-all"
+						/>
+					</div>
+					<div>
+						<label
+							for="sign-in-password"
+							class="block text-sm font-medium text-black/70 dark:text-white/70 mb-1.5"
+							>{t(I18nKey.diaryAdminPassword)}</label
+						>
+						<input
+							type="password"
+							id="sign-in-password"
+							autocomplete="current-password"
+							required
+							class="w-full px-4 py-2.5 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-(--primary)/50 transition-all"
+						/>
+					</div>
+					<div id="turnstile-container" class="flex justify-center"></div>
+					<button
+						type="submit"
+						id="sign-in-submit"
+						class="w-full px-6 py-2.5 rounded-lg font-medium bg-(--primary) text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+					>
+						{t(I18nKey.diaryAdminSignInButton)}
+					</button>
+				</form>
+			</section>
+
+			<!-- ── 主界面 ────────────────────────────────────── -->
+			<section id="editor-panel" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+				<!-- 左栏：新建相册 -->
+				<div class="card-base p-6">
+					<h2 class="text-lg font-bold mb-5 flex items-center gap-2">
+						<Icon name="material-symbols:create-new-folder" class="text-(--primary)" />
+						{t(I18nKey.albumsAdminNewAlbum)}
+					</h2>
+					<form id="album-form" class="space-y-3">
+						<div>
+							<label
+								for="album-title"
+								class="block text-sm font-medium text-black/70 dark:text-white/70 mb-1.5"
+								>{t(I18nKey.albumsAdminAlbumTitle)}
+								<span class="text-(--primary)">*</span></label
+							>
+							<input
+								type="text"
+								id="album-title"
+								maxlength={albumsSupabaseConfig.titleMaxLength}
+								placeholder={t(I18nKey.albumsAdminAlbumTitlePlaceholder)}
+								class="w-full px-4 py-2.5 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-(--primary)/50 transition-all"
+							/>
+						</div>
+						<div>
+							<label
+								for="album-description"
+								class="block text-sm font-medium text-black/70 dark:text-white/70 mb-1.5"
+								>{t(I18nKey.albumsAdminAlbumDescription)}</label
+							>
+							<textarea
+								id="album-description"
+								rows="2"
+								class="w-full px-4 py-2.5 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 resize-y focus:outline-none focus:ring-2 focus:ring-(--primary)/50 transition-all"
+							></textarea>
+						</div>
+						<div class="grid grid-cols-2 gap-3">
+							<div>
+								<label
+									for="album-location"
+									class="block text-sm font-medium text-black/70 dark:text-white/70 mb-1.5"
+									>{t(I18nKey.albumsAdminAlbumLocation)}</label
+								>
+								<input
+									type="text"
+									id="album-location"
+									class="w-full px-4 py-2.5 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-(--primary)/50 transition-all"
+								/>
+							</div>
+							<div>
+								<label
+									for="album-date"
+									class="block text-sm font-medium text-black/70 dark:text-white/70 mb-1.5"
+									>{t(I18nKey.albumsAdminAlbumDate)}</label
+								>
+								<input
+									type="date"
+									id="album-date"
+									class="w-full px-4 py-2.5 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-(--primary)/50 transition-all"
+								/>
+							</div>
+						</div>
+						<button
+							type="submit"
+							id="album-submit"
+							class="w-full px-6 py-2.5 rounded-lg font-medium bg-(--primary) text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+						>
+							{t(I18nKey.albumsAdminCreateAlbum)}
+						</button>
+					</form>
+				</div>
+
+				<!-- 右栏：上传与管理 -->
+				<div class="lg:col-span-2 space-y-6">
+					<div class="card-base p-6">
+						<div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+							<h2 class="text-lg font-bold flex items-center gap-2">
+								<Icon name="material-symbols:upload" class="text-(--primary)" />
+								{t(I18nKey.albumsAdminUploadPhotos)}
+							</h2>
+							<select
+								id="album-picker"
+								class="px-3 py-2 rounded-lg text-sm bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-(--primary)/50 transition-all"
+							>
+								<option value="">{t(I18nKey.albumsAdminSelectAlbum)}</option>
+							</select>
+						</div>
+
+						<!-- 上传区 -->
+						<div id="upload-area" class="hidden">
+							<label
+								for="photo-input"
+								id="photo-drop"
+								class="flex flex-col items-center justify-center gap-2 py-10 rounded-xl cursor-pointer border-2 border-dashed border-black/15 dark:border-white/15 hover:border-(--primary) transition-colors"
+							>
+								<Icon
+									name="material-symbols:add-photo-alternate-outline"
+									class="text-4xl text-black/30 dark:text-white/30"
+								/>
+								<span class="text-sm font-medium">{t(I18nKey.albumsAdminUploadPhotos)}</span>
+								<span class="text-xs text-black/45 dark:text-white/45">
+									{t(I18nKey.albumsAdminUploadHint)}
+								</span>
+							</label>
+							<input
+								type="file"
+								id="photo-input"
+								accept={albumsSupabaseConfig.imageAllowedTypes.join(",")}
+								multiple
+								class="hidden"
+							/>
+
+							<!-- 上传进度 -->
+							<div id="upload-progress" class="hidden mt-4">
+								<div class="flex justify-between text-xs text-black/60 dark:text-white/60 mb-1.5">
+									<span id="upload-progress-text"></span>
+									<span id="upload-progress-count"></span>
+								</div>
+								<div class="h-2 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
+									<div
+										id="upload-progress-bar"
+										class="h-full bg-(--primary) transition-all duration-300"
+										style="width: 0%"
+									>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<p id="upload-no-album" class="text-sm text-black/50 dark:text-white/50 py-6 text-center">
+							请先在上方选择或创建一个相册
+						</p>
+					</div>
+
+					<!-- 照片列表 -->
+					<div id="photo-panel" class="card-base p-6 hidden">
+						<div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+							<h2 id="photo-panel-title" class="text-lg font-bold"></h2>
+							<button
+								type="button"
+								id="delete-album-btn"
+								class="text-xs px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all"
+							>
+								{t(I18nKey.diaryAdminDelete)}
+							</button>
+						</div>
+						<div id="photo-list" class="grid grid-cols-2 sm:grid-cols-3 gap-4"></div>
+						<p id="photo-empty" class="hidden text-sm text-black/50 dark:text-white/50 py-6 text-center">
+							{t(I18nKey.diaryAdminNoEntries)}
+						</p>
+					</div>
+				</div>
+			</section>
+		</div>
+
+		<!-- 配置与文案 -->
+		<div
+			id="admin-runtime"
+			class="hidden"
+			aria-hidden="true"
+			data-thumb-width={String(albumsSupabaseConfig.thumbnailWidth)}
+			data-thumb-quality={String(albumsSupabaseConfig.thumbnailQuality)}
+			data-image-max-mb={String(albumsSupabaseConfig.imageMaxBytes / 1024 / 1024)}
+			data-msg-signing-in={t(I18nKey.diaryAdminSigningIn)}
+			data-msg-sign-in-failed={t(I18nKey.diaryAdminSignInFailed)}
+			data-msg-captcha-required={t(I18nKey.guestbookCaptchaRequired)}
+			data-msg-creating={t(I18nKey.albumsAdminCreating)}
+			data-msg-created={t(I18nKey.albumsAdminAlbumCreated)}
+			data-msg-album-required={t(I18nKey.albumsAdminAlbumRequired)}
+			data-msg-uploading={t(I18nKey.albumsAdminUploading)}
+			data-msg-uploaded={t(I18nKey.albumsAdminUploaded)}
+			data-msg-upload-failed={t(I18nKey.albumsAdminUploadFailed)}
+			data-msg-generate-thumb={t(I18nKey.albumsAdminGenerateThumb)}
+			data-msg-thumb-failed={t(I18nKey.albumsAdminThumbFailed)}
+			data-msg-image-too-large={t(I18nKey.guestbookImageTooLarge)}
+			data-msg-image-bad-type={t(I18nKey.guestbookImageBadType)}
+			data-msg-not-configured={t(I18nKey.guestbookNotConfigured)}
+			data-msg-delete-photo={t(I18nKey.albumsAdminDeletePhotoConfirm)}
+			data-msg-delete-album={t(I18nKey.albumsAdminDeleteAlbumConfirm)}
+			data-msg-deleted={t(I18nKey.diaryAdminDeleted)}
+			data-msg-saved={t(I18nKey.diaryAdminSaved)}
+			data-msg-cover-set={t(I18nKey.albumsAdminCoverSet)}
+			data-msg-cover={t(I18nKey.albumsAdminCover)}
+			data-msg-no-albums={t(I18nKey.albumsAdminSelectAlbum)}
+			data-msg-photo-count={t(I18nKey.albumsAdminPhotoCount)}
+			data-msg-photo-title={t(I18nKey.albumsAdminPhotoTitle)}
+			data-msg-photo-desc={t(I18nKey.albumsAdminPhotoDescription)}
+			data-label-set-cover={t(I18nKey.albumsAdminSetCover)}
+			data-label-save={t(I18nKey.diaryAdminSave)}
+			data-label-delete={t(I18nKey.diaryAdminDelete)}
+			data-captcha-sitekey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? ""}
+		></div>
+
+		<script>
+			import {
+				createAlbum,
+				createPhoto,
+				deleteAlbum,
+				deletePhoto,
+				fetchAlbumPhotos,
+				fetchAlbums,
+				isAlbumsSupabaseConfigured,
+				updateAlbum,
+				updatePhoto,
+				uploadAlbumImage,
+			} from "@components/features/albums-supabase/client";
+			import type {
+				AlbumGroupRow,
+				AlbumPhotoRow,
+			} from "@components/features/albums-supabase/types";
+			import { createThumbnail } from "@utils/thumbnail";
+			import {
+				adminGetUser,
+				adminSignIn,
+				adminSignOut,
+				isCaptchaError,
+			} from "@utils/admin-auth";
+
+			const rt = document.getElementById("admin-runtime")?.dataset ?? ({} as DOMStringMap);
+			const msg = (key: string, fallback = "") => rt[key as keyof DOMStringMap] || fallback;
+
+			const signInPanel = document.getElementById("sign-in-panel");
+			const editorPanel = document.getElementById("editor-panel");
+			const signInForm = document.getElementById("sign-in-form") as HTMLFormElement | null;
+			const signInEmail = document.getElementById("sign-in-email") as HTMLInputElement | null;
+			const signInPassword = document.getElementById("sign-in-password") as HTMLInputElement | null;
+			const signInSubmit = document.getElementById("sign-in-submit") as HTMLButtonElement | null;
+			const signOutBtn = document.getElementById("sign-out-btn") as HTMLButtonElement | null;
+			const adminUser = document.getElementById("admin-user");
+			const statusBox = document.getElementById("admin-status");
+
+			const albumForm = document.getElementById("album-form") as HTMLFormElement | null;
+			const albumTitle = document.getElementById("album-title") as HTMLInputElement | null;
+			const albumDescription = document.getElementById("album-description") as HTMLTextAreaElement | null;
+			const albumLocation = document.getElementById("album-location") as HTMLInputElement | null;
+			const albumDate = document.getElementById("album-date") as HTMLInputElement | null;
+			const albumSubmit = document.getElementById("album-submit") as HTMLButtonElement | null;
+
+			const albumPicker = document.getElementById("album-picker") as HTMLSelectElement | null;
+			const uploadArea = document.getElementById("upload-area");
+			const uploadNoAlbum = document.getElementById("upload-no-album");
+			const photoInput = document.getElementById("photo-input") as HTMLInputElement | null;
+			const uploadProgress = document.getElementById("upload-progress");
+			const uploadProgressBar = document.getElementById("upload-progress-bar");
+			const uploadProgressText = document.getElementById("upload-progress-text");
+			const uploadProgressCount = document.getElementById("upload-progress-count");
+
+			const photoPanel = document.getElementById("photo-panel");
+			const photoPanelTitle = document.getElementById("photo-panel-title");
+			const photoList = document.getElementById("photo-list");
+			const photoEmpty = document.getElementById("photo-empty");
+			const deleteAlbumBtn = document.getElementById("delete-album-btn");
+
+			let albums: AlbumGroupRow[] = [];
+			let currentAlbumId: number | null = null;
+			let currentPhotos: AlbumPhotoRow[] = [];
+			let uploading = false;
+
+			// ── 通用 ────────────────────────────────────────────
+			function showStatus(kind: "success" | "error", text: string) {
+				if (!statusBox) return;
+				statusBox.textContent = text;
+				statusBox.className =
+					kind === "success"
+						? "mb-6 px-4 py-3 rounded-lg text-sm bg-(--primary)/12 text-(--primary)"
+						: "mb-6 px-4 py-3 rounded-lg text-sm bg-red-500/12 text-red-500";
+				statusBox.classList.remove("hidden");
+			}
+
+			function escapeHtml(value: unknown): string {
+				return String(value ?? "")
+					.replaceAll("&", "&amp;")
+					.replaceAll("<", "&lt;")
+					.replaceAll(">", "&gt;")
+					.replaceAll('"', "&quot;")
+					.replaceAll("'", "&#39;");
+			}
+
+			// ── Turnstile ───────────────────────────────────────
+			const turnstileContainer = document.getElementById("turnstile-container");
+			const turnstileSiteKey = rt.captchaSitekey || "";
+			let captchaToken: string | null = null;
+			let turnstileWidgetId: string | null = null;
+
+			function resetCaptcha() {
+				captchaToken = null;
+				if (typeof window.turnstile !== "undefined" && turnstileWidgetId) {
+					try {
+						window.turnstile.reset(turnstileWidgetId);
+					} catch {
+						// widget 可能已被移除
+					}
+				}
+			}
+
+			function setupTurnstile() {
+				if (!turnstileSiteKey || !turnstileContainer) return;
+				if (typeof window.turnstile !== "undefined") {
+					renderTurnstile();
+					return;
+				}
+				const script = document.createElement("script");
+				script.src =
+					"https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+				script.async = true;
+				script.defer = true;
+				script.onload = renderTurnstile;
+				document.head.appendChild(script);
+			}
+
+			function renderTurnstile() {
+				if (typeof window.turnstile === "undefined" || !turnstileContainer) return;
+				if (turnstileWidgetId) return;
+				turnstileWidgetId = window.turnstile.render(turnstileContainer, {
+					sitekey: turnstileSiteKey,
+					theme: document.documentElement.classList.contains("dark") ? "dark" : "light",
+					callback: (token: string) => {
+						captchaToken = token;
+					},
+					"expired-callback": () => {
+						captchaToken = null;
+					},
+					"error-callback": () => {
+						captchaToken = null;
+					},
+				});
+			}
+
+			// ── 相册列表 ────────────────────────────────────────
+			async function loadAlbums() {
+				albums = await fetchAlbums(0, 200);
+				if (!albumPicker) return;
+
+				const previous = albumPicker.value;
+				albumPicker.innerHTML =
+					`<option value="">${escapeHtml(msg("msgNoAlbums", "Select album"))}</option>` +
+					albums
+						.map((a) => `<option value="${a.id}">${escapeHtml(a.title)}</option>`)
+						.join("");
+
+				if (previous && albums.some((a) => String(a.id) === previous)) {
+					albumPicker.value = previous;
+				} else if (currentAlbumId && albums.some((a) => a.id === currentAlbumId)) {
+					albumPicker.value = String(currentAlbumId);
+				}
+			}
+
+			// ── 照片列表 ────────────────────────────────────────
+			async function loadPhotos(albumId: number) {
+				currentAlbumId = albumId;
+				currentPhotos = await fetchAlbumPhotos(albumId);
+
+				const album = albums.find((a) => a.id === albumId);
+				if (photoPanelTitle && album) {
+					photoPanelTitle.textContent = `${album.title} · ${currentPhotos.length} ${msg("msgPhotoCount", "photos")}`;
+				}
+
+				photoPanel?.classList.remove("hidden");
+				uploadArea?.classList.remove("hidden");
+				uploadNoAlbum?.classList.add("hidden");
+
+				if (currentPhotos.length === 0) {
+					if (photoList) photoList.innerHTML = "";
+					photoEmpty?.classList.remove("hidden");
+					return;
+				}
+				photoEmpty?.classList.add("hidden");
+				renderPhotos();
+			}
+
+			function renderPhotos() {
+				if (!photoList) return;
+				const isCover = (photo: AlbumPhotoRow) =>
+					albums.find((a) => a.id === currentAlbumId)?.cover === photo.src;
+
+				photoList.innerHTML = currentPhotos
+					.map(
+						(photo) => `<div class="rounded-xl border border-black/10 dark:border-white/10 overflow-hidden" data-photo-id="${photo.id}">
+	<div class="relative">
+		<img src="${escapeHtml(photo.thumbnail || photo.src)}" alt="${escapeHtml(photo.title)}" loading="lazy" class="w-full aspect-square object-cover" />
+		${isCover(photo) ? `<span class="absolute top-2 left-2 px-2 py-0.5 rounded text-[0.65rem] bg-(--primary) text-white">${escapeHtml(msg("msgCover", "cover"))}</span>` : ""}
+	</div>
+	<div class="p-3 space-y-2">
+		<input type="text" data-field="title" value="${escapeHtml(photo.title)}" placeholder="${escapeHtml(msg("msgPhotoTitle", "title"))}"
+			class="w-full px-2.5 py-1.5 rounded-lg text-sm bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-(--primary)/50 transition-all" />
+		<textarea data-field="description" rows="2" placeholder="${escapeHtml(msg("msgPhotoDesc", "description"))}"
+			class="w-full px-2.5 py-1.5 rounded-lg text-sm bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 resize-y focus:outline-none focus:ring-2 focus:ring-(--primary)/50 transition-all">${escapeHtml(photo.description)}</textarea>
+		<div class="flex flex-wrap gap-2">
+			<button type="button" data-action="save" class="text-xs px-2.5 py-1.5 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 hover:border-(--primary) hover:text-(--primary) transition-all">${escapeHtml(msg("labelSave", "save"))}</button>
+			<button type="button" data-action="cover" class="text-xs px-2.5 py-1.5 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 hover:border-(--primary) hover:text-(--primary) transition-all">${escapeHtml(msg("labelSetCover", "cover"))}</button>
+			<button type="button" data-action="delete" class="text-xs px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all">${escapeHtml(msg("labelDelete", "delete"))}</button>
+		</div>
+	</div>
+</div>`,
+					)
+					.join("");
+			}
+
+			photoList?.addEventListener("click", async (event) => {
+				const btn = (event.target as HTMLElement).closest("[data-action]") as HTMLElement | null;
+				if (!btn) return;
+				const card = btn.closest("[data-photo-id]") as HTMLElement | null;
+				const id = Number(card?.dataset.photoId);
+				const photo = currentPhotos.find((p) => p.id === id);
+				if (!photo) return;
+
+				const action = btn.dataset.action;
+				try {
+					if (action === "delete") {
+						if (!confirm(msg("msgDeletePhoto", "delete?"))) return;
+						await deletePhoto(id);
+						showStatus("success", msg("msgDeleted", "deleted"));
+						if (currentAlbumId) await loadPhotos(currentAlbumId);
+						return;
+					}
+
+					if (action === "cover") {
+						if (currentAlbumId === null) return;
+						await updateAlbum(currentAlbumId, { cover: photo.src });
+						await loadAlbums();
+						renderPhotos();
+						showStatus("success", msg("msgCoverSet", "cover set"));
+						return;
+					}
+
+					if (action === "save") {
+						const title = (card?.querySelector('[data-field="title"]') as HTMLInputElement)?.value ?? "";
+						const description =
+							(card?.querySelector('[data-field="description"]') as HTMLTextAreaElement)?.value ?? "";
+						await updatePhoto(id, { title: title.trim(), description: description.trim() });
+						photo.title = title.trim();
+						photo.description = description.trim();
+						showStatus("success", msg("msgSaved", "saved"));
+					}
+				} catch (error) {
+					showStatus("error", error instanceof Error ? error.message : String(error));
+				}
+			});
+
+			// ── 新建相册 ────────────────────────────────────────
+			albumForm?.addEventListener("submit", async (event) => {
+				event.preventDefault();
+				const title = albumTitle?.value.trim() ?? "";
+				if (!title) {
+					showStatus("error", msg("msgAlbumRequired", "title required"));
+					return;
+				}
+
+				if (albumSubmit) albumSubmit.disabled = true;
+				const original = albumSubmit?.textContent ?? "";
+				if (albumSubmit) albumSubmit.textContent = msg("msgCreating", "creating…");
+
+				try {
+					const created = await createAlbum({
+						title,
+						description: albumDescription?.value.trim() ?? "",
+						location: albumLocation?.value.trim() ?? "",
+						date: albumDate?.value || null,
+					});
+					albumForm.reset();
+					showStatus("success", msg("msgCreated", "created"));
+					await loadAlbums();
+					if (albumPicker) albumPicker.value = String(created.id);
+					await loadPhotos(created.id);
+				} catch (error) {
+					showStatus("error", error instanceof Error ? error.message : String(error));
+				} finally {
+					if (albumSubmit) {
+						albumSubmit.disabled = false;
+						albumSubmit.textContent = original;
+					}
+				}
+			});
+
+			// ── 切换相册 ────────────────────────────────────────
+			albumPicker?.addEventListener("change", async () => {
+				const id = Number(albumPicker.value);
+				if (!id) {
+					currentAlbumId = null;
+					photoPanel?.classList.add("hidden");
+					uploadArea?.classList.add("hidden");
+					uploadNoAlbum?.classList.remove("hidden");
+					return;
+				}
+				try {
+					await loadPhotos(id);
+				} catch (error) {
+					showStatus("error", error instanceof Error ? error.message : String(error));
+				}
+			});
+
+			// ── 删除相册 ────────────────────────────────────────
+			deleteAlbumBtn?.addEventListener("click", async () => {
+				if (currentAlbumId === null) return;
+				if (!confirm(msg("msgDeleteAlbum", "delete album?"))) return;
+				try {
+					await deleteAlbum(currentAlbumId);
+					showStatus("success", msg("msgDeleted", "deleted"));
+					currentAlbumId = null;
+					photoPanel?.classList.add("hidden");
+					uploadArea?.classList.add("hidden");
+					uploadNoAlbum?.classList.remove("hidden");
+					if (albumPicker) albumPicker.value = "";
+					await loadAlbums();
+				} catch (error) {
+					showStatus("error", error instanceof Error ? error.message : String(error));
+				}
+			});
+
+			// ── 上传照片 ────────────────────────────────────────
+			function setProgress(done: number, total: number, label: string) {
+				uploadProgress?.classList.remove("hidden");
+				if (uploadProgressBar) {
+					uploadProgressBar.style.width = `${total ? Math.round((done / total) * 100) : 0}%`;
+				}
+				if (uploadProgressText) uploadProgressText.textContent = label;
+				if (uploadProgressCount) uploadProgressCount.textContent = `${done}/${total}`;
+			}
+
+			photoInput?.addEventListener("change", async () => {
+				const files = Array.from(photoInput.files ?? []);
+				photoInput.value = "";
+				if (files.length === 0 || currentAlbumId === null || uploading) return;
+
+				uploading = true;
+				const albumId = currentAlbumId;
+				const thumbWidth = Number(rt.thumbWidth || 800);
+				const thumbQuality = Number(rt.thumbQuality || 0.82);
+				const maxMb = Number(rt.imageMaxMb || 20);
+
+				let done = 0;
+				let failed = 0;
+
+				for (const file of files) {
+					setProgress(done, files.length, msg("msgUploading", "uploading…"));
+					try {
+						if (file.size > maxMb * 1024 * 1024) {
+							throw new Error(msg("msgImageTooLarge", "too large"));
+						}
+
+						// 1. 生成缩略图（失败就退回用原图，不阻断上传）
+						setProgress(done, files.length, msg("msgGenerateThumb", "thumbnail…"));
+						let thumbBlob: Blob = file;
+						try {
+							const thumb = await createThumbnail(file, thumbWidth, thumbQuality);
+							thumbBlob = thumb.blob;
+						} catch (error) {
+							console.warn("[albums] 缩略图生成失败，改用原图:", error);
+						}
+
+						// 2. 先传缩略图再传原图
+						const thumbnailUrl = await uploadAlbumImage(thumbBlob, "thumb");
+						const srcUrl = await uploadAlbumImage(file, "photo");
+
+						// 3. 写库
+						await createPhoto({
+							albumId,
+							src: srcUrl,
+							thumbnail: thumbnailUrl,
+							title: file.name.replace(/\.[^.]+$/, ""),
+							description: "",
+						});
+
+						done += 1;
+					} catch (error) {
+						failed += 1;
+						console.error("[albums] 上传失败:", file.name, error);
+					}
+					setProgress(done + failed, files.length, msg("msgUploading", "uploading…"));
+				}
+
+				uploading = false;
+				setProgress(done, files.length, "");
+
+				if (failed === 0) {
+					showStatus("success", `${msg("msgUploaded", "uploaded")} (${done})`);
+				} else {
+					showStatus("error", `${msg("msgUploadFailed", "failed")} (${failed}/${files.length})`);
+				}
+
+				await loadPhotos(albumId);
+				await loadAlbums();
+			});
+
+			// ── 登录态 ──────────────────────────────────────────
+			function showEditor(email: string | undefined) {
+				signInPanel?.classList.add("hidden");
+				editorPanel?.classList.remove("hidden");
+				signOutBtn?.classList.remove("hidden");
+				if (adminUser) adminUser.textContent = email ? `已登录：${email}` : "";
+				void (async () => {
+					try {
+						await loadAlbums();
+					} catch (error) {
+						showStatus("error", error instanceof Error ? error.message : String(error));
+					}
+				})();
+			}
+
+			function showSignIn() {
+				signInPanel?.classList.remove("hidden");
+				editorPanel?.classList.add("hidden");
+				signOutBtn?.classList.add("hidden");
+				if (adminUser) adminUser.textContent = "";
+			}
+
+			signInForm?.addEventListener("submit", async (event) => {
+				event.preventDefault();
+				const email = signInEmail?.value.trim() ?? "";
+				const password = signInPassword?.value ?? "";
+				if (!email || !password) return;
+
+				if (turnstileSiteKey && !captchaToken) {
+					showStatus("error", msg("msgCaptchaRequired", "please complete the captcha"));
+					return;
+				}
+
+				if (signInSubmit) signInSubmit.disabled = true;
+				const original = signInSubmit?.textContent ?? "";
+				if (signInSubmit) signInSubmit.textContent = msg("msgSigningIn", "signing in…");
+				statusBox?.classList.add("hidden");
+
+				try {
+					await adminSignIn(email, password, captchaToken);
+					const user = await adminGetUser();
+					showEditor(user?.email);
+				} catch (error) {
+					showStatus(
+						"error",
+						isCaptchaError(error)
+							? msg("msgCaptchaRequired", "captcha failed")
+							: msg("msgSignInFailed", "sign-in failed"),
+					);
+					console.error("[albums-admin] 登录失败:", error);
+				} finally {
+					if (signInSubmit) {
+						signInSubmit.disabled = false;
+						signInSubmit.textContent = original;
+					}
+					resetCaptcha();
+				}
+			});
+
+			signOutBtn?.addEventListener("click", async () => {
+				await adminSignOut();
+				showSignIn();
+			});
+
+			// ── 启动 ────────────────────────────────────────────
+			(async () => {
+				if (!isAlbumsSupabaseConfigured()) {
+					showStatus("error", msg("msgNotConfigured", "not configured"));
+					signInPanel?.classList.add("hidden");
+					return;
+				}
+				const user = await adminGetUser();
+				if (user) {
+					showEditor(user.email);
+				} else {
+					showSignIn();
+					setupTurnstile();
+				}
+			})();
+		</script>
+	</body>
+</html>

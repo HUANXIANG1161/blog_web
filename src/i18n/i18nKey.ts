@@ -126,6 +126,8 @@ enum I18nKey {
 	albumsPhotosCount = "albumsPhotosCount",
 	albumsFilterAll = "albumsFilterAll",
 	albumsNoResults = "albumsNoResults",
+	albumsLoading = "albumsLoading",
+	albumsLoadFailed = "albumsLoadFailed",
 
 	// 设备页面
 	devices = "devices",
@@ -455,6 +457,37 @@ enum I18nKey {
 	diaryAdminContentRequired = "diaryAdminContentRequired",
 	diaryAdminLoading = "diaryAdminLoading",
 	diaryAdminReloadHint = "diaryAdminReloadHint",
+
+	// 相册管理页
+	albumsAdmin = "albumsAdmin",
+	albumsAdminNewAlbum = "albumsAdminNewAlbum",
+	albumsAdminAlbumTitle = "albumsAdminAlbumTitle",
+	albumsAdminAlbumTitlePlaceholder = "albumsAdminAlbumTitlePlaceholder",
+	albumsAdminAlbumDescription = "albumsAdminAlbumDescription",
+	albumsAdminAlbumLocation = "albumsAdminAlbumLocation",
+	albumsAdminAlbumDate = "albumsAdminAlbumDate",
+	albumsAdminCreateAlbum = "albumsAdminCreateAlbum",
+	albumsAdminCreating = "albumsAdminCreating",
+	albumsAdminAlbumCreated = "albumsAdminAlbumCreated",
+	albumsAdminAlbumRequired = "albumsAdminAlbumRequired",
+	albumsAdminNoAlbums = "albumsAdminNoAlbums",
+	albumsAdminSelectAlbum = "albumsAdminSelectAlbum",
+	albumsAdminUploadPhotos = "albumsAdminUploadPhotos",
+	albumsAdminUploading = "albumsAdminUploading",
+	albumsAdminUploaded = "albumsAdminUploaded",
+	albumsAdminUploadFailed = "albumsAdminUploadFailed",
+	albumsAdminUploadHint = "albumsAdminUploadHint",
+	albumsAdminPhotoTitle = "albumsAdminPhotoTitle",
+	albumsAdminPhotoDescription = "albumsAdminPhotoDescription",
+	albumsAdminPhotoCount = "albumsAdminPhotoCount",
+	albumsAdminDeletePhotoConfirm = "albumsAdminDeletePhotoConfirm",
+	albumsAdminDeleteAlbumConfirm = "albumsAdminDeleteAlbumConfirm",
+	albumsAdminImages = "albumsAdminImages",
+	albumsAdminCover = "albumsAdminCover",
+	albumsAdminSetCover = "albumsAdminSetCover",
+	albumsAdminCoverSet = "albumsAdminCoverSet",
+	albumsAdminGenerateThumb = "albumsAdminGenerateThumb",
+	albumsAdminThumbFailed = "albumsAdminThumbFailed",
 }
 
 export default I18nKey;

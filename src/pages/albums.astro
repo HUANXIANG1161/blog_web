@@ -5,7 +5,7 @@ import { PageHeader } from "@components/features/page-header";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
 import { Icon } from "astro-icon/components";
 
-import { siteConfig } from "../config";
+import { siteConfig, albumsSupabaseConfig } from "../config";
 import I18nKey from "../i18n/i18nKey";
 import { i18n } from "../i18n/translation";
 import { scanAlbums } from "../utils/album-scanner";
@@ -77,25 +77,95 @@ const subtitle = i18n(I18nKey.albumsSubtitle);
 				</p>
 			</div>
 
-			{
-				albumsData.length === 0 && (
-					<div class="text-center py-16">
-						<Icon
-							name="material-symbols:photo-library"
-							class="text-6xl text-black/15 dark:text-white/15 mb-4"
-						/>
-						<h3 class="text-lg font-medium text-black/90 dark:text-white/90 mb-2">
-							{i18n(I18nKey.albumsEmpty)}
-						</h3>
-						<p class="text-black/60 dark:text-white/60">
-							{i18n(I18nKey.albumsEmptyDesc)}
-						</p>
-					</div>
-				)
-			}
+			<!--
+				空状态。构建时没有相册时会显示，但 Supabase 数据是客户端拉取的，
+				拿到数据后要把这块收起来 —— 所以这里挂个 id 供脚本控制。
+			-->
+			<div
+				id="albums-empty"
+				class:list={["text-center py-16", albumsData.length > 0 && "hidden"]}
+			>
+				<Icon
+					name="material-symbols:photo-library"
+					class="text-6xl text-black/15 dark:text-white/15 mb-4"
+				/>
+				<h3 class="text-lg font-medium text-black/90 dark:text-white/90 mb-2">
+					{i18n(I18nKey.albumsEmpty)}
+				</h3>
+				<p class="text-black/60 dark:text-white/60">
+					{i18n(I18nKey.albumsEmptyDesc)}
+				</p>
+			</div>
+
+			<!-- 客户端拉取时的加载态 -->
+			<div id="albums-loading" class="hidden text-center py-16">
+				<Icon
+					name="material-symbols:progress-activity"
+					class="text-5xl text-black/20 dark:text-white/20 animate-spin mb-3"
+				/>
+				<p class="text-black/50 dark:text-white/50">
+					{i18n(I18nKey.albumsLoading)}
+				</p>
+			</div>
 		</div>
 	</div>
+
+	<!--
+		把运行期配置传给客户端脚本
+	-->
+	<div
+		id="albums-runtime"
+		class="hidden"
+		aria-hidden="true"
+		data-supabase-enabled={albumsSupabaseConfig.enable ? "true" : "false"}
+		data-photos-label={i18n(I18nKey.albumsPhotosCount)}
+		data-load-failed={i18n(I18nKey.albumsLoadFailed)}
+	></div>
 </MainGridLayout>
+
+<!--
+	Supabase 数据源。
+	相册在客户端拉取后再渲染 —— 这样网页上传后刷新就能看到，不需要等站点重建。
+	构建时扫描 public/images/albums 得到的本地相册会先渲染出来做兜底。
+-->
+{
+	albumsSupabaseConfig.enable && (
+		<script>
+			import {
+				fetchAlbumsWithPhotos,
+				isAlbumsSupabaseConfigured,
+			} from "@components/features/albums-supabase/client";
+			import {
+				renderAlbums,
+				showAlbumsError,
+				showAlbumsLoading,
+			} from "@components/features/albums-supabase/render";
+
+			const runtime = document.getElementById("albums-runtime")?.dataset;
+
+			if (runtime?.supabaseEnabled === "true") {
+				const labels = { photosLabel: runtime.photosLabel || "" };
+				const loadFailedLabel = runtime.loadFailed || "load failed";
+
+				const load = async () => {
+					if (!isAlbumsSupabaseConfigured()) return;
+
+					showAlbumsLoading();
+					try {
+						const albums = await fetchAlbumsWithPhotos();
+						renderAlbums({ albums, labels });
+					} catch (error) {
+						console.error("[albums] 从 Supabase 加载失败:", error);
+						showAlbumsError(loadFailedLabel);
+					}
+				};
+
+				void load();
+				document.addEventListener("swup:contentReplaced", () => void load());
+			}
+		</script>
+	)
+}
 
 <style is:global>
 	#albums-grid {

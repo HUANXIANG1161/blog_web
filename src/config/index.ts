@@ -62,6 +62,7 @@
  */
 
 import { announcementConfig as announcementDefaults } from "./announcementConfig";
+import { albumsSupabaseConfig as albumsSupabaseDefaults } from "./albumsSupabaseConfig";
 import { fullscreenWallpaperConfig as fullscreenWallpaperDefaults } from "./backgroundWallpaper";
 import { diarySupabaseConfig as diarySupabaseDefaults } from "./diarySupabaseConfig";
 import { sakuraConfig as sakuraDefaults } from "./effectsConfig";
@@ -114,6 +115,12 @@ export const guestbookConfig = withOverride(
 export const diarySupabaseConfig = withOverride(
 	"diarySupabaseConfig",
 	diarySupabaseDefaults,
+);
+
+// ─── 相册数据源 ─────────────────────────────────────────────
+export const albumsSupabaseConfig = withOverride(
+	"albumsSupabaseConfig",
+	albumsSupabaseDefaults,
 );
 
 // ─── 内容与版权 ─────────────────────────────────────────────

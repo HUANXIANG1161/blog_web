@@ -12,6 +12,7 @@
 import { deepMerge } from "./deepMerge";
 
 const OVERRIDABLE_CONFIGS = [
+	"albumsSupabaseConfig",
 	"announcementConfig",
 	"diarySupabaseConfig",
 	"expressiveCodeConfig",
