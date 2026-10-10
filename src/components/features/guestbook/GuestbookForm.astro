@@ -120,8 +120,8 @@ const maxImageMb = (guestbookConfig.imageMaxBytes / 1024 / 1024).toFixed(0);
 			</span>
 		</div>
 
-		<!-- 选中后的预览，未选图片时不显示 -->
-		<div id="guestbook-image-preview" class="hidden mt-3 relative inline-block">
+		<!-- 选中后的预览，未选图片时靠 hidden 隐藏 -->
+		<div id="guestbook-image-preview" class="hidden mt-3 relative">
 			<img
 				id="guestbook-image-preview-img"
 				alt=""
@@ -131,7 +131,7 @@ const maxImageMb = (guestbookConfig.imageMaxBytes / 1024 / 1024).toFixed(0);
 				type="button"
 				id="guestbook-image-remove"
 				aria-label={t(I18nKey.guestbookRemoveImage)}
-				class="absolute -top-2 -right-2 w-7 h-7 rounded-full flex items-center justify-center
+				class="absolute -top-2 -right-2 w-7 h-7 rounded-full hidden items-center justify-center
 					bg-(--primary) text-white shadow-md hover:scale-110 transition-transform"
 			>
 				<Icon name="material-symbols:close" class="text-base" />

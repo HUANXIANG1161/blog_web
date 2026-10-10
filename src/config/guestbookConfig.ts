@@ -39,21 +39,21 @@ export interface GuestbookConfig {
 	 * 配置 hCaptcha 的 Secret，并在下面填对应的 Site Key。
 	 */
 	captcha: {
-		enable: boolean;
+		enable: false;
 		/** hCaptcha 的 Site Key（公开值，可以写进前端） */
-		siteKey: string;
+		siteKey: "";
 	};
 }
 
 export const guestbookConfig: GuestbookConfig = {
 	enable: true,
 
+	// 想改成自己的规则，直接改这个数组，每条一行
 	rules: [
-		"友善发言，可以吐槽但别骂人。",
-		"可以留网址，但别来打广告。",
-		"图片请控制在 2MB 以内，支持 JPG / PNG / WebP / GIF。",
-		"留言会先经过人机验证，通过后立即显示。",
-		"看到不爽的留言我会直接删，不另行通知。",
+		"友善发言，别盒我。",
+		"不要发一些可能会把网站搞没的东西。",
+		"图片支持 JPG / PNG / WebP / GIF。",
+		"为防止刷屏接入了人机验证。"
 	],
 
 	pageSize: 20,
@@ -63,8 +63,10 @@ export const guestbookConfig: GuestbookConfig = {
 	imageAllowedTypes: ["image/jpeg", "image/png", "image/webp", "image/gif"],
 
 	captcha: {
-		enable: true,
-		// TODO: 填 hCaptcha 的 Site Key
+		// ⚠️ 开启前必须先把 siteKey 填上，否则前台会出现
+		// 「请先完成人机验证」但页面上根本没有验证框，导致无法提交。
+		enable: false,
+		// TODO: 注册 hCaptcha 后把 Site Key 填在这里，再把 enable 改成 true
 		siteKey: "",
 	},
 };

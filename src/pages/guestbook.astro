@@ -313,31 +313,48 @@ const t = (key: I18nKey) => i18n(key);
 		}
 
 		// ── 图片选择 ─────────────────────────────────────────────
+		// 预览容器和「移除」按钮的显示状态在这里统一控制，
+		// 避免只靠 CSS 的 hidden 类被其它 display 类覆盖
+		function setImagePreviewVisible(visible: boolean) {
+			if (!imagePreview) return;
+			imagePreview.classList.toggle("hidden", !visible);
+			imagePreview.classList.toggle("block", visible);
+
+			if (!imageRemove) return;
+			imageRemove.classList.toggle("hidden", !visible);
+			imageRemove.classList.toggle("inline-flex", visible);
+		}
+
+		function clearSelectedImage() {
+			selectedImage = null;
+			if (imageInput) imageInput.value = "";
+			if (imagePreviewImg) imagePreviewImg.src = "";
+			setImagePreviewVisible(false);
+		}
+
+		// 初始状态：没有图片，预览和按钮都隐藏
+		setImagePreviewVisible(false);
+
 		imageInput?.addEventListener("change", () => {
 			const file = imageInput.files?.[0];
 			if (!file) return;
 
 			const maxMb = Number(form.dataset.imageMaxMb || 2);
-			const allowed = form.dataset.imageAllowedTypes || "";
-			void allowed;
 
 			if (file.size > maxMb * 1024 * 1024) {
 				showStatus("error", form.dataset.msgImageTooLarge || "image too large");
-				imageInput.value = "";
+				clearSelectedImage();
 				return;
 			}
 
 			selectedImage = file;
 			if (imagePreviewImg) imagePreviewImg.src = URL.createObjectURL(file);
-			imagePreview?.classList.remove("hidden");
+			setImagePreviewVisible(true);
 			hideStatus();
 		});
 
 		imageRemove?.addEventListener("click", () => {
-			selectedImage = null;
-			if (imageInput) imageInput.value = "";
-			if (imagePreviewImg) imagePreviewImg.src = "";
-			imagePreview?.classList.add("hidden");
+			clearSelectedImage();
 		});
 
 		// 字数统计
@@ -394,9 +411,7 @@ const t = (key: I18nKey) => i18n(key);
 
 				showStatus("success", form.dataset.msgSubmitted || "ok");
 				form.reset();
-				selectedImage = null;
-				imagePreview?.classList.add("hidden");
-				if (imagePreviewImg) imagePreviewImg.src = "";
+				clearSelectedImage();
 				if (contentCount) contentCount.textContent = "0";
 
 				// 重新拉一次，让新留言立刻出现在最上面
