@@ -39,8 +39,6 @@ create table if not exists public.album_groups (
   id          bigint generated always as identity primary key,
   title       text        not null,
   description text        not null default '',
-  location    text        not null default '',
-  date        date,
   cover       text,
   created_at  timestamptz not null default now(),
 
@@ -194,6 +192,23 @@ thumbnailQuality: 0.82,   // JPEG 压缩质量
 - Supabase 数据拉取成功后**整体替换**掉
 
 所以两边可以共存。你现在 `public/images/albums/` 下只有 README，是空的。
+
+---
+
+## 清理不再使用的列（可选）
+
+早期版本的相册有「地点」和「日期」两个字段，后来去掉了。如果你建表时带了这两列，
+它们现在已经没有任何代码引用，可以删掉：
+
+```sql
+alter table public.album_groups drop column if exists location;
+alter table public.album_groups drop column if exists date;
+```
+
+**不删也不影响功能** —— 前端查询里已经不包含这两列，留着只是容易让人以为还在用。
+
+> 注意：相册排序用的是 `created_at`，不是 `date`，所以删掉 `date` 不会影响排序。
+> 照片表 `album_photos` 从来没有这两列，不需要处理。
 
 ---
 
