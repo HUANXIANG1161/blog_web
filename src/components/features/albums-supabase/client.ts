@@ -11,6 +11,7 @@ import { albumsSupabaseConfig } from "@/config";
 import {
 	createSupabaseClient,
 	isSupabaseConfigured,
+	runQuery,
 	uploadImage,
 } from "@/utils/supabase-client";
 import type {
@@ -54,6 +55,9 @@ export function uploadAlbumImage(
 }
 
 // ─── 公开页面用：匿名读取 ──────────────────────────────────────
+//
+// 所有查询都走 runQuery（内部是 withTimeout）：supabase-js 的查询是 thenable，网络被挂住时
+// 可能永不 settle，页面上就表现为「一直在加载中」。
 
 /** 读取相册列表，按日期倒序（没有 date 的用创建时间） */
 export async function fetchAlbums(
@@ -61,11 +65,13 @@ export async function fetchAlbums(
 	limit = albumsSupabaseConfig.pageSize,
 ): Promise<AlbumGroupRow[]> {
 	const supabase = createSupabaseClient();
-	const { data, error } = await supabase
-		.from(GROUPS_TABLE)
-		.select(GROUP_COLUMNS)
-		.order("created_at", { ascending: false })
-		.range(offset, offset + limit - 1);
+	const { data, error } = await runQuery(
+		supabase
+			.from(GROUPS_TABLE)
+			.select(GROUP_COLUMNS)
+			.order("created_at", { ascending: false })
+			.range(offset, offset + limit - 1),
+	);
 
 	if (error) throw error;
 	return (data ?? []) as AlbumGroupRow[];
@@ -76,11 +82,9 @@ export async function fetchAlbumById(
 	id: number,
 ): Promise<AlbumGroupRow | null> {
 	const supabase = createSupabaseClient();
-	const { data, error } = await supabase
-		.from(GROUPS_TABLE)
-		.select(GROUP_COLUMNS)
-		.eq("id", id)
-		.maybeSingle();
+	const { data, error } = await runQuery(
+		supabase.from(GROUPS_TABLE).select(GROUP_COLUMNS).eq("id", id).maybeSingle(),
+	);
 
 	if (error) throw error;
 	return (data as AlbumGroupRow | null) ?? null;
@@ -91,11 +95,13 @@ export async function fetchAlbumPhotos(
 	albumId: number,
 ): Promise<AlbumPhotoRow[]> {
 	const supabase = createSupabaseClient();
-	const { data, error } = await supabase
-		.from(PHOTOS_TABLE)
-		.select(PHOTO_COLUMNS)
-		.eq("album_id", albumId)
-		.order("created_at", { ascending: true });
+	const { data, error } = await runQuery(
+		supabase
+			.from(PHOTOS_TABLE)
+			.select(PHOTO_COLUMNS)
+			.eq("album_id", albumId)
+			.order("created_at", { ascending: true }),
+	);
 
 	if (error) throw error;
 	return (data ?? []) as AlbumPhotoRow[];
@@ -112,14 +118,16 @@ export async function fetchAlbumsWithPhotos(): Promise<AlbumWithPhotos[]> {
 	if (albums.length === 0) return [];
 
 	const supabase = createSupabaseClient();
-	const { data, error } = await supabase
-		.from(PHOTOS_TABLE)
-		.select(PHOTO_COLUMNS)
-		.in(
-			"album_id",
-			albums.map((a) => a.id),
-		)
-		.order("created_at", { ascending: true });
+	const { data, error } = await runQuery(
+		supabase
+			.from(PHOTOS_TABLE)
+			.select(PHOTO_COLUMNS)
+			.in(
+				"album_id",
+				albums.map((a) => a.id),
+			)
+			.order("created_at", { ascending: true }),
+	);
 
 	if (error) throw error;
 
@@ -138,10 +146,6 @@ export async function fetchAlbumsWithPhotos(): Promise<AlbumWithPhotos[]> {
 
 // ─── 管理页用：需要登录 ────────────────────────────────────────
 
-function adminClient() {
-	return createSupabaseClient({ persistSession: true });
-}
-
 /** 新建相册，返回新记录。cover 允许为空，传第一张照片后再更新 */
 export async function createAlbum(input: {
 	title: string;
@@ -149,17 +153,19 @@ export async function createAlbum(input: {
 	location: string;
 	date: string | null;
 }): Promise<AlbumGroupRow> {
-	const supabase = adminClient();
-	const { data, error } = await supabase
-		.from(GROUPS_TABLE)
-		.insert({
-			title: input.title,
-			description: input.description,
-			location: input.location,
-			date: input.date,
-		})
-		.select(GROUP_COLUMNS)
-		.single();
+	const supabase = createSupabaseClient();
+	const { data, error } = await runQuery(
+		supabase
+			.from(GROUPS_TABLE)
+			.insert({
+				title: input.title,
+				description: input.description,
+				location: input.location,
+				date: input.date,
+			})
+			.select(GROUP_COLUMNS)
+			.single(),
+	);
 
 	if (error) throw error;
 	return data as AlbumGroupRow;
@@ -176,11 +182,10 @@ export async function updateAlbum(
 		cover?: string | null;
 	},
 ): Promise<void> {
-	const supabase = adminClient();
-	const { error } = await supabase
-		.from(GROUPS_TABLE)
-		.update(input)
-		.eq("id", id);
+	const supabase = createSupabaseClient();
+	const { error } = await runQuery(
+		supabase.from(GROUPS_TABLE).update(input).eq("id", id),
+	);
 	if (error) throw error;
 }
 
@@ -190,8 +195,10 @@ export async function updateAlbum(
  * 但存储桶里的图片文件不会自动删（需要另外处理，见 docs/ALBUMS.md）。
  */
 export async function deleteAlbum(id: number): Promise<void> {
-	const supabase = adminClient();
-	const { error } = await supabase.from(GROUPS_TABLE).delete().eq("id", id);
+	const supabase = createSupabaseClient();
+	const { error } = await runQuery(
+		supabase.from(GROUPS_TABLE).delete().eq("id", id),
+	);
 	if (error) throw error;
 }
 
@@ -199,18 +206,20 @@ export async function deleteAlbum(id: number): Promise<void> {
 export async function createPhoto(
 	input: PhotoUploadInput,
 ): Promise<AlbumPhotoRow> {
-	const supabase = adminClient();
-	const { data, error } = await supabase
-		.from(PHOTOS_TABLE)
-		.insert({
-			album_id: input.albumId,
-			src: input.src,
-			thumbnail: input.thumbnail,
-			title: input.title,
-			description: input.description,
-		})
-		.select(PHOTO_COLUMNS)
-		.single();
+	const supabase = createSupabaseClient();
+	const { data, error } = await runQuery(
+		supabase
+			.from(PHOTOS_TABLE)
+			.insert({
+				album_id: input.albumId,
+				src: input.src,
+				thumbnail: input.thumbnail,
+				title: input.title,
+				description: input.description,
+			})
+			.select(PHOTO_COLUMNS)
+			.single(),
+	);
 
 	if (error) throw error;
 	return data as AlbumPhotoRow;
@@ -218,8 +227,10 @@ export async function createPhoto(
 
 /** 删除一张照片（只删数据库记录，存储桶里的文件保留） */
 export async function deletePhoto(id: number): Promise<void> {
-	const supabase = adminClient();
-	const { error } = await supabase.from(PHOTOS_TABLE).delete().eq("id", id);
+	const supabase = createSupabaseClient();
+	const { error } = await runQuery(
+		supabase.from(PHOTOS_TABLE).delete().eq("id", id),
+	);
 	if (error) throw error;
 }
 
@@ -228,10 +239,9 @@ export async function updatePhoto(
 	id: number,
 	input: { title?: string; description?: string },
 ): Promise<void> {
-	const supabase = adminClient();
-	const { error } = await supabase
-		.from(PHOTOS_TABLE)
-		.update(input)
-		.eq("id", id);
+	const supabase = createSupabaseClient();
+	const { error } = await runQuery(
+		supabase.from(PHOTOS_TABLE).update(input).eq("id", id),
+	);
 	if (error) throw error;
 }

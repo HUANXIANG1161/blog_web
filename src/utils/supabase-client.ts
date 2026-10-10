@@ -25,24 +25,52 @@ export function isSupabaseConfigured(): boolean {
 }
 
 /**
- * 持久化登录态的客户端必须复用同一个实例。
+ * 全站共用一个客户端实例。
  *
- * 原因：createClient() 每次调用都返回全新实例，而新实例是「匿名」的 ——
- * 它的会话要从 localStorage 异步恢复。如果上传图片时新建一个实例，
- * 请求会在会话恢复完成前发出，于是带着 anon key 去打需要 authenticated
- * 的策略，报 "new row violates row-level security policy"。
+ * 为什么必须共用：
+ *   supabase-js 的登录态按项目 URL 存在同一个 localStorage key 下。如果
+ *   同一页面里存在多个实例，它们会争抢同一个 key，控制台会报
+ *   "Multiple GoTrueClient instances detected in the same browser context"，
+ *   后果是登录态可能被另一个实例覆盖或清掉 —— 表现为「管理页有时认不出
+ *   已登录」「列表偶尔加载不出来」这类偶发问题。
  *
- * 留言板（persistSession: false）不需要共用，因为它本来就以匿名身份读写。
+ * 所以这里只建一次，并且统一开启登录态持久化。它带来的效果：
+ *   - 匿名访客：没有会话，请求以 anon 身份发出，权限完全由 RLS 决定
+ *   - 已登录站长：请求带上会话，能通过 authenticated 策略
+ *   两种情况都是「请求带上当前身份」，不需要区分客户端。
  */
-let persistentClient: SupabaseClient | null = null;
+let sharedClient: SupabaseClient | null = null;
 
 /**
- * 建立客户端。
+ * 取得 Supabase 客户端。
  *
  * @param captchaToken 有值时作为请求头带上，供 Supabase 转发给 hCaptcha 校验。
- *   带了 token 的调用一律新建实例，因为 token 是一次性的，
- *   复用到后续请求反而会失败。
- * @param persistSession 是否复用带登录态的共享实例（管理页用 true）
+ *   带 token 的调用会新建一次性实例 —— token 是一次性的，复用到后续请求
+ *   反而会失败，而且它只影响那一次请求。
+/**
+ * 把 fetch 包一层超时。
+ *
+ * supabase-js 内部用 fetch 发请求，而浏览器默认没有超时 —— 连接被挂住
+ * （网络不稳、被中间设备丢包）时 Promise 可能长时间不 settle，页面上的
+ * 表现就是「一直在加载中」。这里用 AbortController 强制中断，
+ * 让调用方至少能拿到一个错误并显示出来。
+ */
+function fetchWithTimeout(timeoutMs = 15000): typeof fetch {
+	return async (input, init) => {
+		const controller = new AbortController();
+		const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+		try {
+			return await fetch(input, { ...init, signal: controller.signal });
+		} finally {
+			clearTimeout(timer);
+		}
+	};
+}
+
+/**
+ * @param persistSession 已忽略：登录态一律持久化。
+ *   保留参数是为了不破坏现有调用点。
  */
 export function createSupabaseClient(options?: {
 	captchaToken?: string | null;
@@ -55,31 +83,82 @@ export function createSupabaseClient(options?: {
 		);
 	}
 
-	const persistSession = options?.persistSession ?? false;
+	// 所有实例都带上超时，避免网络挂住时界面永远停在加载态
+	const globalOptions = { fetch: fetchWithTimeout() };
 
-	// 需要登录态、且没有一次性 token 时，复用共享实例
-	if (persistSession && !options?.captchaToken) {
-		if (!persistentClient) {
-			persistentClient = createClient(url, anonKey, {
-				auth: {
-					persistSession: true,
-					autoRefreshToken: true,
-					detectSessionInUrl: false,
-				},
-			});
-		}
-		return persistentClient;
+	// 带一次性验证码 token 的请求单独建实例，避免污染共享实例的请求头
+	if (options?.captchaToken) {
+		return createClient(url, anonKey, {
+			auth: {
+				persistSession: true,
+				autoRefreshToken: true,
+				detectSessionInUrl: false,
+			},
+			global: {
+				...globalOptions,
+				headers: { "x-hcaptcha-token": options.captchaToken },
+			},
+		});
 	}
 
-	return createClient(url, anonKey, {
-		auth: {
-			persistSession,
-			autoRefreshToken: persistSession,
-			detectSessionInUrl: false,
-		},
-		global: options?.captchaToken
-			? { headers: { "x-hcaptcha-token": options.captchaToken } }
-			: undefined,
+	if (!sharedClient) {
+		sharedClient = createClient(url, anonKey, {
+			auth: {
+				persistSession: true,
+				autoRefreshToken: true,
+				detectSessionInUrl: false,
+			},
+			global: globalOptions,
+		});
+	}
+
+	return sharedClient;
+}
+
+/**
+ * 给 Supabase 查询加超时，并直接解出 { data, error }。
+ *
+ * 为什么需要：supabase-js 的查询是 thenable 而不是标准 Promise，网络被挂住时
+ * 它可能既不 resolve 也不 reject。页面上的表现就是「一直在加载中」，永远转下去。
+ * 加上超时后至少会 reject，界面就能显示错误提示。
+ *
+ * 用法上比逐个包 withTimeout 更省事 —— 调用点只改一个词：
+ *
+ *   const { data, error } = await runQuery(supabase.from(T).select("*"));
+ *
+ * @param timeoutMs 超时毫秒数。Supabase 在国内访问偏慢，默认给 15 秒。
+ */
+export async function runQuery<T>(
+	query: PromiseLike<{ data: T; error: unknown }>,
+	timeoutMs = 15000,
+): Promise<{ data: T; error: unknown }> {
+	return withTimeout(query, timeoutMs);
+}
+
+/**
+ * 给任意 Supabase 调用加超时。
+ *
+ * @param timeoutMs 超时毫秒数。Supabase 在国内访问偏慢，默认给 15 秒。
+ */
+export function withTimeout<T>(
+	query: PromiseLike<T>,
+	timeoutMs = 15000,
+): Promise<T> {
+	return new Promise<T>((resolve, reject) => {
+		const timer = setTimeout(() => {
+			reject(new Error("REQUEST_TIMEOUT"));
+		}, timeoutMs);
+
+		query.then(
+			(value) => {
+				clearTimeout(timer);
+				resolve(value);
+			},
+			(error) => {
+				clearTimeout(timer);
+				reject(error);
+			},
+		);
 	});
 }
 

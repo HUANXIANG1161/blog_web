@@ -12,6 +12,7 @@ import { guestbookConfig } from "@/config";
 import {
 	createSupabaseClient,
 	isSupabaseConfigured,
+	runQuery,
 	uploadImage,
 } from "@/utils/supabase-client";
 import type { GuestbookMessage, GuestbookMessageInput } from "./types";
@@ -39,11 +40,13 @@ export async function fetchMessages(
 	limit = guestbookConfig.pageSize,
 ): Promise<GuestbookMessage[]> {
 	const supabase = createSupabaseClient();
-	const { data, error } = await supabase
-		.from(TABLE)
-		.select("id,name,content,image_url,created_at")
-		.order("created_at", { ascending: false })
-		.range(offset, offset + limit - 1);
+	const { data, error } = await runQuery(
+		supabase
+			.from(TABLE)
+			.select("id,name,content,image_url,created_at")
+			.order("created_at", { ascending: false })
+			.range(offset, offset + limit - 1),
+	);
 
 	if (error) throw error;
 	return (data ?? []) as GuestbookMessage[];
