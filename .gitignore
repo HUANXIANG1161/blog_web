@@ -65,3 +65,7 @@ src/data/bilibili-data.json
 *.psd~
 *.cmo3
 *.vtube.json
+
+# 编辑器原子写入时产生的临时目录。
+# 正常情况下会自动清理；万一残留了也不该进版本库。
+*.tmpdir/
