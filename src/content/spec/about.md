@@ -16,7 +16,7 @@ Geometry Dash 一千八百多小时坐牢记录，除此之外还玩玩 sl 尖�
 
 - QQ：1191247557
 - Bilibili：[space.bilibili.com/101263758](https://space.bilibili.com/101263758)
-- email：gongjiabin1@outlook.com
+- email：fantasy1161@outlook.com
 - github：[https://github.com/HUANXIANG1161](https://github.com/HUANXIANG1161)
 
 ## 关于本站
