@@ -224,24 +224,32 @@ const favicons: Favicon[] =
 
 <script is:inline>
 	/**
-	 * 让 /albums/ 与 /albums/view/ 整个绕过 Swup，走普通整页跳转。
+	 * 让「内容靠客户端拉取」的页面整个绕过 Swup，走普通整页跳转。
 	 *
-	 * 原因：相册页的内容是客户端拉 Supabase 后渲染的，而站点用 Swup 做无刷新
+	 * 原因：这些页面的正文是客户端请求 Supabase 后渲染的，而 Swup 做无刷新
 	 * 跳转时不会重新执行页面脚本（浏览器也不会重新执行 URL 相同的 ES 模块）。
-	 * 结果是从任何地方跳回 /albums/ 都会看到空列表 —— 客户端渲染的卡片丢了。
+	 * 表现出来就是「从别的板块点进来一直加载中，手动刷新才正常」。
 	 *
-	 * 之前在单个链接上加 data-no-swup 只是打补丁：顶部导航、侧边栏、正文里的
-	 * 链接都得各加一次，漏一个就复现。这里改成按路径统一拦截，
-	 * 无论从哪个链接进来都走整页加载，稳定可靠。
+	 * 为什么不逐个链接加 data-no-swup：那只是打补丁，顶部导航、侧边栏、正文
+	 * 里的链接都得各加一次，漏一个就复现（相册当初就是这么反复出问题的）。
+	 * 这里按路径统一拦截，任何入口进来都走整页加载，稳定可靠。
 	 *
-	 * 整页跳转在这里是可接受的：相册数据本来就要等一次网络请求，
-	 * 而且换来了「任何入口都正确」这个确定性。
+	 * 整页跳转的代价可以接受：这些页面本来就要等一次网络请求，
+	 * 换来的是「任何入口都正确」这个确定性。
+	 *
+	 * ⚠️ 以后新增「客户端渲染」的页面，记得把路径加进下面的列表 ——
+	 * 否则从其它板块跳进去就会卡在加载态。
 	 */
 	(function () {
+		// 需要绕过 Swup 的路径前缀
+		var BYPASS_PREFIXES = ["/albums", "/guestbook", "/diary"];
+
 		function shouldIgnoreVisit(url) {
 			try {
 				var path = new URL(url, window.location.origin).pathname;
-				return path === "/albums" || path.startsWith("/albums/");
+				return BYPASS_PREFIXES.some(function (prefix) {
+					return path === prefix || path.indexOf(prefix + "/") === 0;
+				});
 			} catch {
 				return false;
 			}
@@ -250,7 +258,7 @@ const favicons: Favicon[] =
 		function patch() {
 			var swup = window.swup;
 			if (!swup || !swup.options) return;
-			// 保留原本的忽略规则（data-no-swup 等），只额外忽略相册路径
+			// 保留原本的忽略规则（data-no-swup 等），只额外忽略上面的路径
 			var original = swup.options.ignoreVisit;
 			swup.options.ignoreVisit = function (url, opts) {
 				if (shouldIgnoreVisit(url)) return true;
