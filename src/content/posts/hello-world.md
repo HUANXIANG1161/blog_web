@@ -29,4 +29,6 @@ draft: false
 
 **留言板真的可以留言**，每条我都会看。
 
+special thanks：大肥鱼，我自己，and you
+
 <span style="opacity: 0.55">腾讯的服务器好贵啊，这次只买了三个月，早知道就用 Cloudflare 了。</span>
