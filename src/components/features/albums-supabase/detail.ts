@@ -154,9 +154,9 @@ function renderPhotos(albumId: number, photos: AlbumPhotoRow[]): void {
 	</div>
 	${
 		photo.title || photo.description
-			? `<div class="px-1 pt-2 pb-1"><div class="text-sm font-medium text-black/80 dark:text-white/80">${escapeHtml(photo.title)}</div>${
+			? `<div class="px-1 pt-2 pb-1"><div data-photo-title class="text-sm font-medium text-black/80 dark:text-white/80">${escapeHtml(photo.title)}</div>${
 					photo.description
-						? `<div class="text-xs text-black/50 dark:text-white/50 mt-0.5">${escapeHtml(photo.description)}</div>`
+						? `<div data-photo-desc class="text-xs text-black/50 dark:text-white/50 mt-0.5">${escapeHtml(photo.description)}</div>`
 						: ""
 				}</div>`
 			: ""

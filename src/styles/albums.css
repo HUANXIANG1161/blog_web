@@ -5,14 +5,50 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 瀑布流布局 */
+/* 瀑布流布局
+ *
+ * column-width 是「理想列宽」，浏览器会按容器宽度取最接近的列数，
+ * 再把剩余空间摊给每列 —— 所以实际渲染宽度通常比这里写的大一些
+ * （例如写 180px、容器 591px 时会渲染成 190px 左右）。
+ *
+ * 这里从 240px 调小到 180px：相册页正文区域实际只有 590~770px 宽
+ * （右侧有侧边栏占位），240px 只能排 2 列、每张近 290px，偏大。
+ */
 .gallery-masonry {
-  column-width: 240px;
-  column-gap: 0.75rem;
+  column-width: 180px;
+  column-gap: 0.625rem;
 }
 
-.gallery-masonry .gallery-photo-card {
+.gallery-masonry .gallery-photo-card,
+.gallery-masonry .gallery-masonry-item {
   break-inside: avoid;
+}
+
+/* 照片标题与描述
+ *
+ * 上传时标题默认取原始文件名，经常是 30 多个字符的长串
+ * （例如 23d56cf1816b96f09e47b4dd980825 Q-(3)）。
+ * 图片是 .jpg/.png 这种不含空格的串，默认不会断行，会把列撑宽、
+ * 文字互相重叠，所以这里强制断词，并限制最多两行。
+ */
+.gallery-masonry [data-photo-title],
+.gallery-masonry [data-photo-desc] {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.gallery-masonry [data-photo-title] {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.gallery-masonry [data-photo-desc] {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* 照片网格加载动画 */
@@ -50,12 +86,12 @@
 /* 响应式瀑布流 */
 @media (width < 768px) {
   .gallery-masonry {
-    column-width: 180px;
+    column-width: 140px;
   }
 }
 
 @media (width < 480px) {
   .gallery-masonry {
-    column-width: 140px;
+    column-width: 108px;
   }
 }

@@ -221,3 +221,45 @@ const favicons: Favicon[] =
 		}
 	}
 </script>
+
+<script is:inline>
+	/**
+	 * 让 /albums/ 与 /albums/view/ 整个绕过 Swup，走普通整页跳转。
+	 *
+	 * 原因：相册页的内容是客户端拉 Supabase 后渲染的，而站点用 Swup 做无刷新
+	 * 跳转时不会重新执行页面脚本（浏览器也不会重新执行 URL 相同的 ES 模块）。
+	 * 结果是从任何地方跳回 /albums/ 都会看到空列表 —— 客户端渲染的卡片丢了。
+	 *
+	 * 之前在单个链接上加 data-no-swup 只是打补丁：顶部导航、侧边栏、正文里的
+	 * 链接都得各加一次，漏一个就复现。这里改成按路径统一拦截，
+	 * 无论从哪个链接进来都走整页加载，稳定可靠。
+	 *
+	 * 整页跳转在这里是可接受的：相册数据本来就要等一次网络请求，
+	 * 而且换来了「任何入口都正确」这个确定性。
+	 */
+	(function () {
+		function shouldIgnoreVisit(url) {
+			try {
+				var path = new URL(url, window.location.origin).pathname;
+				return path === "/albums" || path.startsWith("/albums/");
+			} catch {
+				return false;
+			}
+		}
+
+		function patch() {
+			var swup = window.swup;
+			if (!swup || !swup.options) return;
+			// 保留原本的忽略规则（data-no-swup 等），只额外忽略相册路径
+			var original = swup.options.ignoreVisit;
+			swup.options.ignoreVisit = function (url, opts) {
+				if (shouldIgnoreVisit(url)) return true;
+				return typeof original === "function" ? original(url, opts) : false;
+			};
+		}
+
+		// swup 就绪后打补丁；已经就绪时直接打
+		document.addEventListener("swup:enable", patch);
+		patch();
+	})();
+</script>
