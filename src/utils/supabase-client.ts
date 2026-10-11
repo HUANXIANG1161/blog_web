@@ -11,10 +11,33 @@
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+/**
+ * 读取 Supabase 配置。
+ *
+ * 两条读取路径都有必要：
+ *   import.meta.env —— 会被 Vite 静态替换进前端产物，浏览器里才能拿到
+ *   process.env      —— 构建时（Node）可读，作为兜底
+ *
+ * 两者都拿的是 PUBLIC_ 开头的公开值，本来就会出现在前端产物里，
+ * 所以不存在泄露问题。service_role key 不在这里，也永远不该出现在这里。
+ *
+ * 注意：astro.config.mjs 求值发生在 .env 被加载之前，那时这里两条路径都是空的。
+ * 所以构建期的「配置缺失」检查放在 scripts/check-env.mjs（prebuild 阶段跑），
+ * 不依赖这个函数。
+ */
 function readEnv() {
+	const fromVite =
+		(import.meta.env.PUBLIC_SUPABASE_URL as string | undefined) ?? undefined;
+	const fromViteKey =
+		(import.meta.env.PUBLIC_SUPABASE_ANON_KEY as string | undefined) ?? undefined;
+
+	// process.env 在浏览器里不存在，用 typeof 兜一下
+	const nodeEnv =
+		typeof process !== "undefined" && process.env ? process.env : undefined;
+
 	return {
-		url: import.meta.env.PUBLIC_SUPABASE_URL as string | undefined,
-		anonKey: import.meta.env.PUBLIC_SUPABASE_ANON_KEY as string | undefined,
+		url: fromVite ?? nodeEnv?.PUBLIC_SUPABASE_URL,
+		anonKey: fromViteKey ?? nodeEnv?.PUBLIC_SUPABASE_ANON_KEY,
 	};
 }
 
