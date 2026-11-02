@@ -27,6 +27,7 @@ function escapeHtml(value: unknown): string {
 function renderAlbumCard(
 	{ album, photos }: AlbumWithPhotos,
 	labels: AlbumRenderLabels,
+	protectedIds: number[],
 ): string {
 	// 封面优先用手动设置的，其次用第一张照片的缩略图
 	const cover = album.cover || photos[0]?.thumbnail || "";
@@ -34,6 +35,11 @@ function renderAlbumCard(
 	const coverHtml = cover
 		? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(album.title)}" class="w-full h-full object-cover pointer-events-none transition-transform duration-500 group-hover:scale-105" loading="lazy" decoding="async" />`
 		: `<div class="w-full h-full bg-(--btn-regular-bg) flex items-center justify-center"><iconify-icon icon="material-symbols:photo-library" class="text-5xl text-black/20 dark:text-white/20"></iconify-icon></div>`;
+
+	// 需要密码的相册不显示张数，改成一个锁 —— 与本地相册的 AlbumCard 一致
+	const badgeHtml = protectedIds.includes(album.id)
+		? `<div class="px-2 py-1 rounded-full text-xs text-white font-medium bg-black/50 backdrop-blur-sm inline-flex items-center gap-1"><iconify-icon icon="material-symbols:lock" class="text-xs"></iconify-icon></div>`
+		: `<div class="px-2 py-1 rounded-full text-xs text-white font-medium bg-black/50 backdrop-blur-sm">${photos.length} ${escapeHtml(labels.photosLabel)}</div>`;
 
 	// data-no-swup：让这个链接走普通页面跳转，不要被 Swup 拦截。
 	//
@@ -45,7 +51,7 @@ function renderAlbumCard(
 	<div class="aspect-4/3 relative overflow-hidden">
 		${coverHtml}
 		<div class="absolute top-2 right-2 flex items-center gap-1.5">
-			<div class="px-2 py-1 rounded-full text-xs text-white font-medium bg-black/50 backdrop-blur-sm">${photos.length} ${escapeHtml(labels.photosLabel)}</div>
+			${badgeHtml}
 		</div>
 		<div class="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent"></div>
 		<div class="absolute bottom-0 left-0 right-0 p-4">
@@ -59,6 +65,8 @@ function renderAlbumCard(
 export interface RenderAlbumsOptions {
 	albums: AlbumWithPhotos[];
 	labels: AlbumRenderLabels;
+	/** 需要密码才能看的相册 id，卡片上显示锁 */
+	protectedIds?: number[];
 }
 
 /**
@@ -68,6 +76,7 @@ export interface RenderAlbumsOptions {
 export function renderAlbums({
 	albums,
 	labels,
+	protectedIds = [],
 }: RenderAlbumsOptions): number {
 	const grid = document.getElementById("albums-grid");
 	const empty = document.getElementById("albums-empty");
@@ -82,7 +91,9 @@ export function renderAlbums({
 		return 0;
 	}
 
-	grid.innerHTML = albums.map((item) => renderAlbumCard(item, labels)).join("");
+	grid.innerHTML = albums
+		.map((item) => renderAlbumCard(item, labels, protectedIds))
+		.join("");
 	empty?.classList.add("hidden");
 	return albums.length;
 }

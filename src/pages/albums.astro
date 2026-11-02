@@ -6,6 +6,7 @@ import MainGridLayout from "@layouts/MainGridLayout.astro";
 import { Icon } from "astro-icon/components";
 
 import { siteConfig, albumsSupabaseConfig } from "../config";
+import { protectedAlbumIds } from "../config/albumsPassword";
 import I18nKey from "../i18n/i18nKey";
 import { i18n } from "../i18n/translation";
 import { scanAlbums } from "../utils/album-scanner";
@@ -120,6 +121,7 @@ const subtitle = i18n(I18nKey.albumsSubtitle);
 		data-supabase-enabled={albumsSupabaseConfig.enable ? "true" : "false"}
 		data-photos-label={i18n(I18nKey.albumsPhotosCount)}
 		data-load-failed={i18n(I18nKey.albumsLoadFailed)}
+		data-protected-ids={protectedAlbumIds.join(",")}
 	></div>
 </MainGridLayout>
 
@@ -146,6 +148,11 @@ const subtitle = i18n(I18nKey.albumsSubtitle);
 			if (runtime?.supabaseEnabled === "true") {
 				const labels = { photosLabel: runtime.photosLabel || "" };
 				const loadFailedLabel = runtime.loadFailed || "load failed";
+				// 需要密码的相册：卡片上显示锁，不显示照片张数
+				const protectedIds = (runtime.protectedIds || "")
+					.split(",")
+					.map((value) => Number(value.trim()))
+					.filter((value) => Number.isFinite(value) && value > 0);
 
 				const load = async () => {
 					if (!isAlbumsSupabaseConfigured()) return;
@@ -153,7 +160,7 @@ const subtitle = i18n(I18nKey.albumsSubtitle);
 					showAlbumsLoading();
 					try {
 						const albums = await fetchAlbumsWithPhotos();
-						renderAlbums({ albums, labels });
+						renderAlbums({ albums, labels, protectedIds });
 					} catch (error) {
 						console.error("[albums] 从 Supabase 加载失败:", error);
 						showAlbumsError(loadFailedLabel);

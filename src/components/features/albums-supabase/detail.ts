@@ -15,10 +15,13 @@ import {
 	fetchAlbumPhotos,
 	isAlbumsSupabaseConfigured,
 } from "./client";
-import type { AlbumPhotoRow } from "./types";
+import type { AlbumGroupRow, AlbumPhotoRow } from "./types";
 
 const POLL_INTERVAL_MS = 100;
 const POLL_MAX_TICKS = 150; // 约 15 秒后放弃
+
+/** 等待密码解锁时的轮询间隔 */
+const UNLOCK_POLL_INTERVAL_MS = 200;
 
 function escapeHtml(value: unknown): string {
 	return String(value ?? "")
@@ -98,33 +101,31 @@ async function run(): Promise<void> {
 			return;
 		}
 
+		// ── 受保护相册 ────────────────────────────────────
+		// 先只画头部，照片要等密码解开后才去拉 —— 没解锁时照片记录和
+		// 图片地址一个都不会进浏览器。
+		if (isProtectedAlbum(runtime?.protectedIds, albumId)) {
+			fillHeader(album, null);
+			document.getElementById("album-gate")?.classList.remove("hidden");
+			document.getElementById("album-photos-card")?.classList.add("hidden");
+			loading?.classList.add("hidden");
+			detail?.classList.remove("hidden");
+
+			await waitForUnlock();
+
+			document.getElementById("album-gate")?.classList.add("hidden");
+			const unlockedPhotos = await fetchAlbumPhotos(albumId);
+			fillHeader(album, unlockedPhotos);
+			document
+				.getElementById("album-photos-card")
+				?.classList.remove("hidden");
+			renderPhotos(album.id, unlockedPhotos);
+			return;
+		}
+
 		const photos = await fetchAlbumPhotos(albumId);
 
-		// ── 头部 ──────────────────────────────────────────
-		const cover = album.cover || photos[0]?.thumbnail || "";
-		const coverImg = document.getElementById("album-cover") as HTMLImageElement | null;
-		if (cover && coverImg) {
-			coverImg.src = cover;
-			coverImg.alt = album.title;
-		} else {
-			document.getElementById("album-cover-wrap")?.classList.add("hidden");
-		}
-
-		const titleEl = document.getElementById("album-title");
-		if (titleEl) titleEl.textContent = album.title;
-
-		if (album.description) {
-			const descEl = document.getElementById("album-description");
-			if (descEl) {
-				descEl.textContent = album.description;
-				descEl.classList.remove("hidden");
-			}
-		}
-
-		const countEl = document.getElementById("album-count");
-		if (countEl) countEl.textContent = String(photos.length);
-
-		// ── 照片 ──────────────────────────────────────────
+		fillHeader(album, photos);
 		renderPhotos(album.id, photos);
 
 		loading?.classList.add("hidden");
@@ -133,6 +134,98 @@ async function run(): Promise<void> {
 		console.error("[album-detail] 加载失败:", error);
 		showError(runtime?.loadFailed || "load failed");
 	}
+}
+
+/** 这个相册是否要密码才能看 */
+function isProtectedAlbum(raw: string | undefined, albumId: number): boolean {
+	return (raw ?? "")
+		.split(",")
+		.map((value) => Number(value.trim()))
+		.filter((value) => Number.isFinite(value) && value > 0)
+		.includes(albumId);
+}
+
+/**
+ * 填充封面、标题、描述、张数。
+ *
+ * @param photos 传 null 表示「照片还没拉」（受保护相册解锁前），
+ *               此时张数未知，把计数藏起来而不是显示 0
+ */
+function fillHeader(
+	album: AlbumGroupRow,
+	photos: AlbumPhotoRow[] | null,
+): void {
+	const cover = album.cover || photos?.[0]?.thumbnail || "";
+	const coverWrap = document.getElementById("album-cover-wrap");
+	const coverImg = document.getElementById(
+		"album-cover",
+	) as HTMLImageElement | null;
+
+	if (cover && coverImg) {
+		coverImg.src = cover;
+		coverImg.alt = album.title;
+		coverWrap?.classList.remove("hidden");
+	} else {
+		coverWrap?.classList.add("hidden");
+	}
+
+	const titleEl = document.getElementById("album-title");
+	if (titleEl) titleEl.textContent = album.title;
+
+	if (album.description) {
+		const descEl = document.getElementById("album-description");
+		if (descEl) {
+			descEl.textContent = album.description;
+			descEl.classList.remove("hidden");
+		}
+	}
+
+	const countWrap = document.getElementById("album-count-wrap");
+	const countEl = document.getElementById("album-count");
+	if (photos) {
+		countWrap?.classList.remove("hidden");
+		if (countEl) countEl.textContent = String(photos.length);
+	} else {
+		countWrap?.classList.add("hidden");
+	}
+}
+
+/**
+ * 等密码门被解开。
+ *
+ * PasswordProtection 解密成功后会移除 #password-protection、并显示
+ * #decrypted-content，所以用这两个 DOM 状态判断，比只靠事件可靠 ——
+ * 它也可能在页面加载时直接用 sessionStorage 里记住的密码自动解锁，
+ * 那一次发生在监听注册之前，事件会漏掉。
+ *
+ * 故意不设超时：解锁可能发生在很久以后（用户慢慢输密码），放弃等待会
+ * 让页面卡在闸门上再也拿不到照片。
+ */
+function waitForUnlock(): Promise<void> {
+	return new Promise((resolve) => {
+		const isUnlocked = (): boolean =>
+			!document.getElementById("password-protection") &&
+			Boolean(document.getElementById("decrypted-content"));
+
+		const timer = window.setInterval(() => {
+			if (!isUnlocked()) return;
+			cleanup();
+			resolve();
+		}, UNLOCK_POLL_INTERVAL_MS);
+
+		const onDecrypted = (): void => {
+			if (!isUnlocked()) return;
+			cleanup();
+			resolve();
+		};
+
+		function cleanup(): void {
+			window.clearInterval(timer);
+			document.removeEventListener("password:decrypted", onDecrypted);
+		}
+
+		document.addEventListener("password:decrypted", onDecrypted);
+	});
 }
 
 function renderPhotos(albumId: number, photos: AlbumPhotoRow[]): void {

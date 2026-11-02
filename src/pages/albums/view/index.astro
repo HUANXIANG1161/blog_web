@@ -14,16 +14,29 @@
  */
 import { Icon } from "astro-icon/components";
 
+import PasswordProtection from "@components/features/auth/PasswordProtection.astro";
 import { albumsSupabaseConfig, siteConfig } from "@/config";
+import {
+	albumPassword,
+	albumPasswordHint,
+	albumPasswordSlug,
+	protectedAlbumIds,
+} from "@/config/albumsPassword";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
 import MainGridLayout from "@/layouts/MainGridLayout.astro";
+import { encryptContent } from "@/utils/crypto-utils";
 
 export const prerender = true;
 
 if (!siteConfig.featurePages.albums) {
 	return Astro.redirect("/404/");
 }
+
+// 构建时把一段占位 HTML 用相册密码加密成密文。
+// 页面产物里只有密文，明文密码不会被打进 HTML 或 JS。
+// 所有受保护相册共用这个 slug，所以共用同一段密文（密码也是共用的）。
+const albumGateCipher = encryptContent("<span></span>", albumPassword, albumPasswordSlug);
 ---
 
 <MainGridLayout title={i18n(I18nKey.albums)} description={i18n(I18nKey.albumsSubtitle)}>
@@ -91,7 +104,7 @@ if (!siteConfig.featurePages.albums) {
 					>
 					</p>
 					<div class="flex items-center gap-4 text-sm text-white/80 flex-wrap">
-						<span class="inline-flex items-center gap-1">
+						<span id="album-count-wrap" class="inline-flex items-center gap-1">
 							<Icon name="material-symbols:photo-library" class="text-sm" />
 							<span id="album-count">0</span>
 							{i18n(I18nKey.albumsPhotosCount)}
@@ -102,13 +115,27 @@ if (!siteConfig.featurePages.albums) {
 		</div>
 
 		<!-- 照片瀑布流 -->
-		<div class="w-full rounded-(--radius-large) overflow-hidden relative mt-4">
+		<div id="album-photos-card" class="w-full rounded-(--radius-large) overflow-hidden relative mt-4">
 			<div class="card-base z-10 px-6 py-6 relative w-full">
 				<div id="album-photos" class="gallery-masonry"></div>
 				<p id="album-photos-empty" class="hidden text-lg text-center py-16 text-black/40 dark:text-white/40">
 					{i18n(I18nKey.albumsEmpty)}
 				</p>
 			</div>
+		</div>
+	</div>
+
+	<!--
+		密码门。只在受保护相册显示 —— 显隐由 detail.ts 根据相册 id 决定，
+		因为相册 id 在查询参数里，构建时不知道是哪一个，所以这里始终渲染一份，
+		不需要时藏起来即可。
+	-->
+	<div id="album-gate" class="hidden mt-4">
+		<div class="card-base px-6 py-10">
+			<PasswordProtection
+				encryptedContent={albumGateCipher}
+				hint={albumPasswordHint}
+			/>
 		</div>
 	</div>
 
@@ -119,6 +146,7 @@ if (!siteConfig.featurePages.albums) {
 		data-supabase-enabled={albumsSupabaseConfig.enable ? "true" : "false"}
 		data-not-found={i18n(I18nKey.albumsEmpty)}
 		data-load-failed={i18n(I18nKey.albumsLoadFailed)}
+		data-protected-ids={protectedAlbumIds.join(",")}
 	></div>
 </MainGridLayout>
 
