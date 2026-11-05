@@ -106,6 +106,8 @@ async function run(): Promise<void> {
 		// 图片地址一个都不会进浏览器。
 		if (isProtectedAlbum(runtime?.protectedIds, albumId)) {
 			fillHeader(album, null);
+			// 没输密码之前封面不该让人看清，先糊成毛玻璃
+			setCoverFrosted(true);
 			document.getElementById("album-gate")?.classList.remove("hidden");
 			document.getElementById("album-photos-card")?.classList.add("hidden");
 			loading?.classList.add("hidden");
@@ -113,12 +115,11 @@ async function run(): Promise<void> {
 
 			await waitForUnlock();
 
+			setCoverFrosted(false);
 			document.getElementById("album-gate")?.classList.add("hidden");
 			const unlockedPhotos = await fetchAlbumPhotos(albumId);
 			fillHeader(album, unlockedPhotos);
-			document
-				.getElementById("album-photos-card")
-				?.classList.remove("hidden");
+			document.getElementById("album-photos-card")?.classList.remove("hidden");
 			renderPhotos(album.id, unlockedPhotos);
 			return;
 		}
@@ -188,6 +189,21 @@ function fillHeader(
 	} else {
 		countWrap?.classList.add("hidden");
 	}
+}
+
+/**
+ * 受保护相册的封面在解锁前做毛玻璃处理，解锁后恢复清晰。
+ *
+ * 模糊量由 .album-cover.is-blurred 提供（见 src/styles/albums.css），
+ * 这里只负责加/减 class，过渡动画交给 CSS。
+ */
+function setCoverFrosted(frosted: boolean): void {
+	document
+		.getElementById("album-cover")
+		?.classList.toggle("is-blurred", frosted);
+	document
+		.getElementById("album-cover-veil")
+		?.classList.toggle("is-visible", frosted);
 }
 
 /**

@@ -22,7 +22,6 @@ function escapeHtml(value: unknown): string {
 	return String(value ?? "").replace(/[&<>"']/g, (c) => map[c]);
 }
 
-
 /** 生成一张相册卡（对应 AlbumCard.astro 的结构） */
 function renderAlbumCard(
 	{ album, photos }: AlbumWithPhotos,
@@ -32,12 +31,15 @@ function renderAlbumCard(
 	// 封面优先用手动设置的，其次用第一张照片的缩略图
 	const cover = album.cover || photos[0]?.thumbnail || "";
 
+	// 需要密码的相册，封面在解锁前糊成毛玻璃，免得列表上就把图看清了
+	const isProtected = protectedIds.includes(album.id);
+
 	const coverHtml = cover
-		? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(album.title)}" class="w-full h-full object-cover pointer-events-none transition-transform duration-500 group-hover:scale-105" loading="lazy" decoding="async" />`
+		? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(album.title)}" class="album-cover w-full h-full object-cover pointer-events-none transition-transform duration-500 group-hover:scale-105${isProtected ? " is-blurred" : ""}" loading="lazy" decoding="async" />`
 		: `<div class="w-full h-full bg-(--btn-regular-bg) flex items-center justify-center"><iconify-icon icon="material-symbols:photo-library" class="text-5xl text-black/20 dark:text-white/20"></iconify-icon></div>`;
 
 	// 需要密码的相册不显示张数，改成一个锁 —— 与本地相册的 AlbumCard 一致
-	const badgeHtml = protectedIds.includes(album.id)
+	const badgeHtml = isProtected
 		? `<div class="px-2 py-1 rounded-full text-xs text-white font-medium bg-black/50 backdrop-blur-sm inline-flex items-center gap-1"><iconify-icon icon="material-symbols:lock" class="text-xs"></iconify-icon></div>`
 		: `<div class="px-2 py-1 rounded-full text-xs text-white font-medium bg-black/50 backdrop-blur-sm">${photos.length} ${escapeHtml(labels.photosLabel)}</div>`;
 

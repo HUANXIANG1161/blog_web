@@ -5,6 +5,27 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* 受保护相册：解锁前把封面糊成毛玻璃
+ *
+ * 加密相册在输密码前不该让人看清封面，所以先把图糊掉。
+ * 解锁后由 JS 去掉 .is-blurred，filter 会过渡回清晰。
+ * scale(1.08) 是为了把模糊后发虚的边缘推到可视区域外面，
+ * 否则四边会露出一圈透明。
+ */
+.album-cover {
+  transition: filter 0.6s ease, transform 0.6s ease;
+}
+
+.album-cover.is-blurred {
+  filter: blur(18px) saturate(1.15);
+  transform: scale(1.08);
+}
+
+/* 详情页封面上那层半透明的白，做出磨砂质感 */
+#album-cover-veil.is-visible {
+  opacity: 1;
+}
+
 /* 瀑布流布局
  *
  * column-width 是「理想列宽」，浏览器会按容器宽度取最接近的列数，
