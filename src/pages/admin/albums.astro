@@ -235,14 +235,73 @@ const t = (key: I18nKey) => i18n(key);
 					<div id="photo-panel" class="card-base p-6 hidden">
 						<div class="flex flex-wrap items-center justify-between gap-3 mb-5">
 							<h2 id="photo-panel-title" class="text-lg font-bold"></h2>
-							<button
-								type="button"
-								id="delete-album-btn"
-								class="text-xs px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all"
-							>
-								{t(I18nKey.diaryAdminDelete)}
-							</button>
+							<div class="flex items-center gap-2">
+								<button
+									type="button"
+									id="edit-album-btn"
+									class="text-xs px-3 py-1.5 rounded-lg bg-(--primary)/10 text-(--primary) border border-(--primary)/20 hover:bg-(--primary)/20 transition-all"
+								>
+									{t(I18nKey.albumsAdminEditAlbum)}
+								</button>
+								<button
+									type="button"
+									id="delete-album-btn"
+									class="text-xs px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all"
+								>
+									{t(I18nKey.diaryAdminDelete)}
+								</button>
+							</div>
 						</div>
+
+						<!-- 编辑相册（默认隐藏，点「编辑相册」展开） -->
+						<form
+							id="album-edit-form"
+							class="hidden mb-5 pb-5 border-b border-black/10 dark:border-white/10 space-y-3"
+						>
+							<div>
+								<label
+									for="album-edit-title"
+									class="block text-sm font-medium text-black/70 dark:text-white/70 mb-1.5"
+									>{t(I18nKey.albumsAdminAlbumTitle)}
+									<span class="text-(--primary)">*</span></label
+								>
+								<input
+									type="text"
+									id="album-edit-title"
+									maxlength={albumsSupabaseConfig.titleMaxLength}
+									class="w-full px-4 py-2.5 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 focus:outline-none focus:ring-2 focus:ring-(--primary)/50 transition-all"
+								/>
+							</div>
+							<div>
+								<label
+									for="album-edit-description"
+									class="block text-sm font-medium text-black/70 dark:text-white/70 mb-1.5"
+									>{t(I18nKey.albumsAdminAlbumDescription)}</label
+								>
+								<textarea
+									id="album-edit-description"
+									rows="2"
+									class="w-full px-4 py-2.5 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 resize-y focus:outline-none focus:ring-2 focus:ring-(--primary)/50 transition-all"
+								></textarea>
+							</div>
+							<div class="flex items-center gap-2">
+								<button
+									type="submit"
+									id="album-edit-save"
+									class="text-xs px-4 py-2 rounded-lg font-medium bg-(--primary) text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+								>
+									{t(I18nKey.diaryAdminSave)}
+								</button>
+								<button
+									type="button"
+									id="album-edit-cancel"
+									class="text-xs px-4 py-2 rounded-lg bg-(--btn-regular-bg) border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/15 transition-all"
+								>
+									{t(I18nKey.albumsAdminCancel)}
+								</button>
+							</div>
+						</form>
+
 						<div id="photo-list" class="grid grid-cols-2 sm:grid-cols-3 gap-4"></div>
 						<p id="photo-empty" class="hidden text-sm text-black/50 dark:text-white/50 py-6 text-center">
 							{t(I18nKey.diaryAdminNoEntries)}
@@ -349,6 +408,14 @@ const t = (key: I18nKey) => i18n(key);
 			const photoList = document.getElementById("photo-list");
 			const photoEmpty = document.getElementById("photo-empty");
 			const deleteAlbumBtn = document.getElementById("delete-album-btn");
+
+			const editAlbumBtn = document.getElementById("edit-album-btn");
+			const albumEditForm = document.getElementById("album-edit-form") as HTMLFormElement | null;
+			const albumEditTitle = document.getElementById("album-edit-title") as HTMLInputElement | null;
+			const albumEditDescription = document.getElementById(
+				"album-edit-description",
+			) as HTMLTextAreaElement | null;
+			const albumEditSave = document.getElementById("album-edit-save") as HTMLButtonElement | null;
 
 			let albums: AlbumGroupRow[] = [];
 			let currentAlbumId: number | null = null;
@@ -551,6 +618,60 @@ const t = (key: I18nKey) => i18n(key);
 				}
 			});
 
+			// ── 编辑相册 ────────────────────────────────────────
+			function closeAlbumEdit() {
+				albumEditForm?.classList.add("hidden");
+			}
+
+			function openAlbumEdit() {
+				if (currentAlbumId === null) return;
+				const album = albums.find((a) => a.id === currentAlbumId);
+				if (!album) return;
+				if (albumEditTitle) albumEditTitle.value = album.title ?? "";
+				if (albumEditDescription) albumEditDescription.value = album.description ?? "";
+				albumEditForm?.classList.remove("hidden");
+				albumEditTitle?.focus();
+				albumEditTitle?.select();
+			}
+
+			editAlbumBtn?.addEventListener("click", () => {
+				if (albumEditForm?.classList.contains("hidden")) {
+					openAlbumEdit();
+				} else {
+					closeAlbumEdit();
+				}
+			});
+
+			document.getElementById("album-edit-cancel")?.addEventListener("click", closeAlbumEdit);
+
+			albumEditForm?.addEventListener("submit", async (event) => {
+				event.preventDefault();
+				if (currentAlbumId === null) return;
+
+				const title = albumEditTitle?.value.trim() ?? "";
+				if (!title) {
+					showStatus("error", msg("msgAlbumRequired", "title required"));
+					return;
+				}
+
+				if (albumEditSave) albumEditSave.disabled = true;
+				try {
+					await updateAlbum(currentAlbumId, {
+						title,
+						description: albumEditDescription?.value.trim() ?? "",
+					});
+					showStatus("success", msg("msgSaved", "saved"));
+					closeAlbumEdit();
+					// 下拉框选项和面板标题里都带相册名，改完要整份刷新
+					await loadAlbums();
+					await loadPhotos(currentAlbumId);
+				} catch (error) {
+					showStatus("error", error instanceof Error ? error.message : String(error));
+				} finally {
+					if (albumEditSave) albumEditSave.disabled = false;
+				}
+			});
+
 			// ── 新建相册 ────────────────────────────────────────
 			albumForm?.addEventListener("submit", async (event) => {
 				event.preventDefault();
@@ -586,6 +707,8 @@ const t = (key: I18nKey) => i18n(key);
 
 			// ── 切换相册 ────────────────────────────────────────
 			albumPicker?.addEventListener("change", async () => {
+				// 换相册时把编辑框收起来，否则还停在上一本的内容上
+				closeAlbumEdit();
 				const id = Number(albumPicker.value);
 				if (!id) {
 					currentAlbumId = null;
@@ -609,6 +732,7 @@ const t = (key: I18nKey) => i18n(key);
 					await deleteAlbum(currentAlbumId);
 					showStatus("success", msg("msgDeleted", "deleted"));
 					currentAlbumId = null;
+					closeAlbumEdit();
 					photoPanel?.classList.add("hidden");
 					uploadArea?.classList.add("hidden");
 					uploadNoAlbum?.classList.remove("hidden");

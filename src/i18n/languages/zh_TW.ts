@@ -475,6 +475,8 @@ export const zh_TW: Translation = {
 	[Key.albumsAdminAlbumTitlePlaceholder]: "例如：2026 春天",
 	[Key.albumsAdminAlbumDescription]: "相簿描述",
 	[Key.albumsAdminCreateAlbum]: "建立相簿",
+	[Key.albumsAdminEditAlbum]: "編輯相簿",
+	[Key.albumsAdminCancel]: "取消",
 	[Key.albumsAdminCreating]: "建立中…",
 	[Key.albumsAdminAlbumCreated]: "相簿已建立",
 	[Key.albumsAdminAlbumRequired]: "請先填寫相簿名稱",

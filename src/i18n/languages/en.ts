@@ -487,6 +487,8 @@ export const en: Translation = {
 	[Key.albumsAdminAlbumTitlePlaceholder]: "e.g. Spring 2026",
 	[Key.albumsAdminAlbumDescription]: "Album description",
 	[Key.albumsAdminCreateAlbum]: "Create album",
+	[Key.albumsAdminEditAlbum]: "Edit album",
+	[Key.albumsAdminCancel]: "Cancel",
 	[Key.albumsAdminCreating]: "Creating…",
 	[Key.albumsAdminAlbumCreated]: "Album created",
 	[Key.albumsAdminAlbumRequired]: "Please enter an album name",

@@ -473,6 +473,8 @@ export const zh_CN: Translation = {
 	[Key.albumsAdminAlbumTitlePlaceholder]: "例如：2026 春天",
 	[Key.albumsAdminAlbumDescription]: "相册描述",
 	[Key.albumsAdminCreateAlbum]: "创建相册",
+	[Key.albumsAdminEditAlbum]: "编辑相册",
+	[Key.albumsAdminCancel]: "取消",
 	[Key.albumsAdminCreating]: "创建中…",
 	[Key.albumsAdminAlbumCreated]: "相册已创建",
 	[Key.albumsAdminAlbumRequired]: "请先填写相册名",
